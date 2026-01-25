@@ -1,0 +1,118 @@
+const deviceInfo = document.getElementById("device-info");
+const pcState = document.getElementById("pc-state");
+const wifiState = document.getElementById("wifi-state");
+const powerBtn = document.getElementById("power-btn");
+const resetHoldBtn = document.getElementById("reset-hold-btn");
+const holdProgress = document.getElementById("hold-progress");
+const resetSlider = document.getElementById("reset-slider");
+const setupPanel = document.getElementById("setup-panel");
+const setupForm = document.getElementById("setup-form");
+
+let holdTimer = null;
+let holdStart = null;
+
+function setStatus(data) {
+  deviceInfo.textContent = `${data.hostname || "unknown"} • ${data.deviceId || ""}`;
+  pcState.textContent = data.pcState || "—";
+  wifiState.textContent = data.apMode ? "AP Mode" : (data.wifiConnected ? "Connected" : "Disconnected");
+  const hasConfig = data.hasConfig === true;
+  const needsOnboarding = !hasConfig;
+  setupPanel.classList.toggle("hidden", !(data.apMode || needsOnboarding));
+}
+
+function fetchStatus() {
+  fetch("/api/status")
+    .then((res) => res.json())
+    .then(setStatus)
+    .catch(() => {});
+}
+
+function setupWebSocket() {
+  const protocol = location.protocol === "https:" ? "wss" : "ws";
+  const ws = new WebSocket(`${protocol}://${location.host}/ws`);
+  ws.onmessage = (evt) => {
+    try {
+      setStatus(JSON.parse(evt.data));
+    } catch {}
+  };
+  ws.onclose = () => setTimeout(setupWebSocket, 2000);
+}
+
+function postAction(path) {
+  return fetch(path, { method: "POST" });
+}
+
+powerBtn.addEventListener("click", () => {
+  postAction("/api/action/power");
+});
+
+function resetHoldStart() {
+  holdStart = Date.now();
+  holdTimer = setInterval(() => {
+    const elapsed = Date.now() - holdStart;
+    const pct = Math.min(100, (elapsed / 3000) * 100);
+    holdProgress.style.width = `${pct}%`;
+    if (elapsed >= 3000) {
+      resetHoldStop(true);
+    }
+  }, 50);
+}
+
+function resetHoldStop(trigger) {
+  if (holdTimer) {
+    clearInterval(holdTimer);
+    holdTimer = null;
+  }
+  holdProgress.style.width = "0%";
+  if (trigger) {
+    postAction("/api/action/reset");
+  }
+}
+
+resetHoldBtn.addEventListener("mousedown", resetHoldStart);
+resetHoldBtn.addEventListener("touchstart", resetHoldStart);
+["mouseup", "mouseleave", "touchend", "touchcancel"].forEach((evt) => {
+  resetHoldBtn.addEventListener(evt, () => resetHoldStop(false));
+});
+
+resetSlider.addEventListener("input", () => {
+  if (Number(resetSlider.value) >= 100) {
+    resetSlider.value = 0;
+    postAction("/api/action/reset");
+  }
+});
+
+setupForm.addEventListener("submit", (evt) => {
+  evt.preventDefault();
+  const payload = {
+    wifiSsid: document.getElementById("wifi-ssid").value.trim(),
+    wifiPass: document.getElementById("wifi-pass").value,
+    mqttHost: document.getElementById("mqtt-host").value.trim(),
+    mqttPort: Number(document.getElementById("mqtt-port").value || 1883),
+    mqttUser: document.getElementById("mqtt-user").value.trim(),
+    mqttPass: document.getElementById("mqtt-pass").value,
+  };
+  fetch("/api/config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+});
+
+fetch("/api/config")
+  .then((res) => res.json())
+  .then((cfg) => {
+    document.getElementById("wifi-ssid").value = cfg.wifiSsid || "";
+    document.getElementById("mqtt-host").value = cfg.mqttHost || "";
+    document.getElementById("mqtt-port").value = cfg.mqttPort || 1883;
+    document.getElementById("mqtt-user").value = cfg.mqttUser || "";
+    if (!cfg.wifiSsid) {
+      setupPanel.classList.remove("hidden");
+    }
+  })
+  .catch(() => {
+    setupPanel.classList.remove("hidden");
+  });
+
+fetchStatus();
+setupWebSocket();

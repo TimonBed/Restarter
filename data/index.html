@@ -1,0 +1,72 @@
+<!doctype html>
+<html class="dark" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Restarter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body class="bg-slate-950 text-slate-100 min-h-screen">
+    <main class="max-w-xl mx-auto p-4 space-y-4">
+      <header class="rounded-xl bg-slate-900 p-4">
+        <h1 class="text-xl font-semibold">Restarter</h1>
+        <p class="text-sm text-slate-400" id="device-info">Loading…</p>
+      </header>
+
+      <section class="rounded-xl bg-slate-900 p-4 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-slate-400">PC State</span>
+          <span id="pc-state" class="text-sm font-semibold">—</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-slate-400">WiFi</span>
+          <span id="wifi-state" class="text-sm font-semibold">—</span>
+        </div>
+      </section>
+
+      <section class="rounded-xl bg-slate-900 p-4 space-y-3">
+        <h2 class="text-base font-semibold">Power</h2>
+        <button id="power-btn"
+          class="w-full rounded-lg bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 py-2 font-semibold">
+          Toggle Power
+        </button>
+      </section>
+
+      <section class="rounded-xl bg-slate-900 p-4 space-y-3">
+        <h2 class="text-base font-semibold">Reset (Hold 3s)</h2>
+        <div class="space-y-2">
+          <button id="reset-hold-btn"
+            class="w-full rounded-lg bg-rose-600 hover:bg-rose-500 active:bg-rose-700 py-2 font-semibold">
+            Hold to Reset
+          </button>
+          <div class="h-2 rounded-full bg-slate-800 overflow-hidden">
+            <div id="hold-progress" class="h-full bg-rose-500 w-0"></div>
+          </div>
+          <div class="text-xs text-slate-400">Or slide to unlock reset.</div>
+          <input id="reset-slider" type="range" min="0" max="100" value="0" class="w-full">
+        </div>
+      </section>
+
+      <section id="setup-panel" class="hidden rounded-xl bg-slate-900 p-4 space-y-3">
+        <h2 class="text-base font-semibold">Setup</h2>
+        <p class="text-xs text-slate-400">
+          Connect the device to WiFi and MQTT. No default password is set.
+        </p>
+        <form id="setup-form" class="space-y-2">
+          <input id="wifi-ssid" class="w-full rounded-lg bg-slate-800 p-2" placeholder="WiFi SSID" required />
+          <input id="wifi-pass" type="password" class="w-full rounded-lg bg-slate-800 p-2" placeholder="WiFi Password" />
+          <input id="mqtt-host" class="w-full rounded-lg bg-slate-800 p-2" placeholder="MQTT Host (optional)" />
+          <input id="mqtt-port" type="number" class="w-full rounded-lg bg-slate-800 p-2" placeholder="MQTT Port" value="1883" />
+          <input id="mqtt-user" class="w-full rounded-lg bg-slate-800 p-2" placeholder="MQTT User" />
+          <input id="mqtt-pass" type="password" class="w-full rounded-lg bg-slate-800 p-2" placeholder="MQTT Password" />
+          <button class="w-full rounded-lg bg-blue-600 hover:bg-blue-500 py-2 font-semibold" type="submit">
+            Save & Reboot
+          </button>
+        </form>
+      </section>
+    </main>
+
+    <script src="/script.js"></script>
+  </body>
+</html>
