@@ -2,7 +2,7 @@
 #include <WiFi.h>
 #include <DNSServer.h>
 #include <LittleFS.h>
-#include <ArduinoJson.h>
+#include <Preferences.h>
 
 #include "Config.h"
 #include "Constants.h"
@@ -11,6 +11,7 @@ extern StoredConfig g_config;
 extern RuntimeState g_state;
 
 static DNSServer g_dnsServer; // Captive portal DNS for AP mode
+static Preferences g_prefs;   // NVS storage - survives LittleFS uploads
 
 static String formatDeviceId(uint64_t mac) {
   // Turn MAC into a short, stable ID string.
@@ -35,49 +36,28 @@ bool Networking_hasConfig() {
 }
 
 bool Networking_loadConfig() {
-  // Read saved config from LittleFS.
-  if (!LittleFS.exists(Config::CONFIG_PATH)) {
-    return false;
-  }
-  File file = LittleFS.open(Config::CONFIG_PATH, "r");
-  if (!file) {
-    return false;
-  }
-  StaticJsonDocument<512> doc;
-  DeserializationError err = deserializeJson(doc, file);
-  file.close();
-  if (err) {
-    return false;
-  }
-
-  g_config.wifiSsid = doc["wifiSsid"] | "";
-  g_config.wifiPass = doc["wifiPass"] | "";
-  g_config.mqttHost = doc["mqttHost"] | "";
-  g_config.mqttPort = doc["mqttPort"] | 1883;
-  g_config.mqttUser = doc["mqttUser"] | "";
-  g_config.mqttPass = doc["mqttPass"] | "";
+  // Read config from NVS (survives LittleFS uploads).
+  g_prefs.begin("restarter", true); // read-only
+  g_config.wifiSsid = g_prefs.getString("wifiSsid", "");
+  g_config.wifiPass = g_prefs.getString("wifiPass", "");
+  g_config.mqttHost = g_prefs.getString("mqttHost", "");
+  g_config.mqttPort = g_prefs.getUShort("mqttPort", 1883);
+  g_config.mqttUser = g_prefs.getString("mqttUser", "");
+  g_config.mqttPass = g_prefs.getString("mqttPass", "");
+  g_prefs.end();
   return Networking_hasConfig();
 }
 
 bool Networking_saveConfig(const StoredConfig &cfg) {
-  // Save config to LittleFS so it persists across reboots.
-  StaticJsonDocument<512> doc;
-  doc["wifiSsid"] = cfg.wifiSsid;
-  doc["wifiPass"] = cfg.wifiPass;
-  doc["mqttHost"] = cfg.mqttHost;
-  doc["mqttPort"] = cfg.mqttPort;
-  doc["mqttUser"] = cfg.mqttUser;
-  doc["mqttPass"] = cfg.mqttPass;
-
-  File file = LittleFS.open(Config::CONFIG_PATH, "w");
-  if (!file) {
-    return false;
-  }
-  if (serializeJson(doc, file) == 0) {
-    file.close();
-    return false;
-  }
-  file.close();
+  // Save config to NVS (separate from LittleFS partition).
+  g_prefs.begin("restarter", false); // read-write
+  g_prefs.putString("wifiSsid", cfg.wifiSsid);
+  g_prefs.putString("wifiPass", cfg.wifiPass);
+  g_prefs.putString("mqttHost", cfg.mqttHost);
+  g_prefs.putUShort("mqttPort", cfg.mqttPort);
+  g_prefs.putString("mqttUser", cfg.mqttUser);
+  g_prefs.putString("mqttPass", cfg.mqttPass);
+  g_prefs.end();
   g_config = cfg;
   return true;
 }

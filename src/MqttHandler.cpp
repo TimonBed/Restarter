@@ -10,6 +10,7 @@ extern PubSubClient g_mqttClient;
 extern StoredConfig g_config;
 extern RuntimeState g_state;
 extern PCController g_pc;
+void WebInterface_logAction(const char *message);
 
 // Base topic: restarter/<deviceId>
 static String baseTopic() {
@@ -82,8 +83,10 @@ static void mqttCallback(char *topic, byte *payload, unsigned int length) {
   String topicStr(topic);
   if (topicStr == powerCommandTopic()) {
     g_pc.pulsePower();
+    WebInterface_logAction("Power pulse requested (MQTT)");
   } else if (topicStr == resetCommandTopic()) {
     g_pc.pulseReset();
+    WebInterface_logAction("Reset pulse requested (MQTT)");
   }
 }
 

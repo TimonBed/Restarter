@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <AsyncJson.h>
 #include <ArduinoJson.h>
@@ -36,7 +37,8 @@ static const char *pcStateToString(PCState state) {
 
 static String buildStatusJson() {
   // Build a compact status payload for UI + WebSocket.
-  StaticJsonDocument<256> doc;
+  StaticJsonDocument<384> doc;
+  doc["type"] = "status";
   doc["hostname"] = g_state.hostname;
   doc["deviceId"] = g_state.deviceId;
   doc["apMode"] = g_state.apMode;
@@ -45,6 +47,20 @@ static String buildStatusJson() {
   doc["pcState"] = pcStateToString(g_state.pcState);
   doc["powerRelayActive"] = g_state.powerRelayActive;
   doc["resetRelayActive"] = g_state.resetRelayActive;
+  // WiFi details
+  if (g_state.apMode) {
+    doc["ssid"] = String(Config::AP_SSID_PREFIX) + g_state.deviceId.substring(6);
+    doc["ip"] = WiFi.softAPIP().toString();
+    doc["rssi"] = 0;
+  } else if (g_state.wifiConnected) {
+    doc["ssid"] = WiFi.SSID();
+    doc["ip"] = WiFi.localIP().toString();
+    doc["rssi"] = WiFi.RSSI();
+  } else {
+    doc["ssid"] = g_config.wifiSsid;
+    doc["ip"] = "";
+    doc["rssi"] = 0;
+  }
   String out;
   serializeJson(doc, out);
   return out;
@@ -55,6 +71,29 @@ void WebInterface_broadcastStatus() {
   g_ws.textAll(buildStatusJson());
 }
 
+static String g_logBuffer[20];
+static size_t g_logCount = 0;
+static size_t g_logIndex = 0;
+static constexpr size_t kLogBufferSize = sizeof(g_logBuffer) / sizeof(g_logBuffer[0]);
+
+void WebInterface_logAction(const char *message) {
+  // Send a lightweight log event to all UI clients.
+  StaticJsonDocument<192> doc;
+  doc["type"] = "log";
+  doc["message"] = message;
+  doc["timestampMs"] = millis();
+  String out;
+  serializeJson(doc, out);
+  g_ws.textAll(out);
+
+  // Keep a small in-memory log for clients that connect later.
+  g_logBuffer[g_logIndex] = out;
+  g_logIndex = (g_logIndex + 1) % kLogBufferSize;
+  if (g_logCount < kLogBufferSize) {
+    g_logCount++;
+  }
+}
+
 void WebInterface_setup() {
   // WebSocket + HTTP endpoints + static UI.
   g_ws.onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client,
@@ -62,14 +101,21 @@ void WebInterface_setup() {
     if (type == WS_EVT_CONNECT) {
       // Send initial snapshot on connect.
       client->text(buildStatusJson());
+      size_t start = (g_logIndex + kLogBufferSize - g_logCount) % kLogBufferSize;
+      for (size_t i = 0; i < g_logCount; i++) {
+        size_t idx = (start + i) % kLogBufferSize;
+        client->text(g_logBuffer[idx]);
+      }
     }
   });
   g_server.addHandler(&g_ws);
 
   auto servePortal = [](AsyncWebServerRequest *request) {
-    // Serve the UI directly (avoid redirect loops).
+    // Serve the UI directly (avoid redirect loops), no caching.
     if (LittleFS.exists("/index.html")) {
-      request->send(LittleFS, "/index.html", "text/html");
+      AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html");
+      response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      request->send(response);
     } else {
       request->send(200, "text/plain", "UI not uploaded. Upload LittleFS data.");
     }
@@ -125,12 +171,14 @@ void WebInterface_setup() {
   g_server.on("/api/action/power", HTTP_POST, [](AsyncWebServerRequest *request) {
     // Pulse power relay.
     g_pc.pulsePower();
+    WebInterface_logAction("Power pulse requested (API)");
     request->send(200, "application/json", "{\"ok\":true}");
   });
 
   g_server.on("/api/action/reset", HTTP_POST, [](AsyncWebServerRequest *request) {
     // Pulse reset relay.
     g_pc.pulseReset();
+    WebInterface_logAction("Reset pulse requested (API)");
     request->send(200, "application/json", "{\"ok\":true}");
   });
 
@@ -140,11 +188,15 @@ void WebInterface_setup() {
   g_server.on("/hotspot-detect.html", HTTP_GET, servePortal);
   g_server.on("/connecttest.txt", HTTP_GET, servePortal);
 
-  // Serve the UI and route unknown pages to the portal.
-  g_server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
+  // Serve the UI with no-cache headers (ensures fresh files after LittleFS upload).
+  g_server.serveStatic("/", LittleFS, "/")
+      .setDefaultFile("index.html")
+      .setCacheControl("no-cache, no-store, must-revalidate");
   g_server.onNotFound([](AsyncWebServerRequest *request) {
     if (LittleFS.exists("/index.html")) {
-      request->send(LittleFS, "/index.html", "text/html");
+      AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html");
+      response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      request->send(response);
     } else {
       request->send(404, "text/plain", "Not found");
     }

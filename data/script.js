@@ -1,147 +1,205 @@
-// Cache DOM elements once.
-const deviceInfo = document.getElementById("device-info");
-const pcState = document.getElementById("pc-state");
-const wifiState = document.getElementById("wifi-state");
-const powerBtn = document.getElementById("power-btn");
-const resetHoldBtn = document.getElementById("reset-hold-btn");
-const holdProgress = document.getElementById("hold-progress");
-const resetSlider = document.getElementById("reset-slider");
-const actionLog = document.getElementById("action-log");
-const setupPanel = document.getElementById("setup-panel");
-const setupForm = document.getElementById("setup-form");
+// v2 - setup panel isolated from websocket
+(function () {
+  "use strict";
 
-let holdTimer = null; // Interval for hold-to-reset progress
-let holdStart = null; // Timestamp when hold started
+  // DOM elements
+  const $ = (id) => document.getElementById(id);
+  const deviceInfo = $("device-info");
+  const pcState = $("pc-state");
+  const wifiState = $("wifi-state");
+  const wifiSsidDisplay = $("wifi-ssid-display");
+  const wifiIp = $("wifi-ip");
+  const wifiRssi = $("wifi-rssi");
+  const signalBars = $("signal-bars");
+  const powerBtn = $("power-btn");
+  const powerProgress = $("power-progress");
+  const resetHoldBtn = $("reset-hold-btn");
+  const resetProgress = $("reset-progress");
+  const actionLog = $("action-log");
+  const setupPanel = $("setup-panel");
+  const setupForm = $("setup-form");
 
-function setStatus(data) {
-  // Update UI labels from the status payload.
-  deviceInfo.textContent = `${data.hostname || "unknown"} • ${data.deviceId || ""}`;
-  pcState.textContent = data.pcState || "—";
-  wifiState.textContent = data.apMode ? "AP Mode" : (data.wifiConnected ? "Connected" : "Disconnected");
-  const hasConfig = data.hasConfig === true;
-  const needsOnboarding = !hasConfig;
-  setupPanel.classList.toggle("hidden", !(data.apMode || needsOnboarding));
-}
+  // Setup panel: determined ONCE on load, never touched by WebSocket
+  let setupPanelLocked = false;
 
-function fetchStatus() {
-  // Fallback polling if WebSocket drops.
-  fetch("/api/status")
-    .then((res) => res.json())
-    .then(setStatus)
-    .catch(() => {});
-}
+  function initSetupPanel() {
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then((cfg) => {
+        // Pre-fill form fields
+        $("wifi-ssid").value = cfg.wifiSsid || "";
+        $("mqtt-host").value = cfg.mqttHost || "";
+        $("mqtt-port").value = cfg.mqttPort || 1883;
+        $("mqtt-user").value = cfg.mqttUser || "";
 
-function setupWebSocket() {
-  // Live updates via WebSocket.
-  const protocol = location.protocol === "https:" ? "wss" : "ws";
-  const ws = new WebSocket(`${protocol}://${location.host}/ws`);
-  ws.onmessage = (evt) => {
-    try {
-      setStatus(JSON.parse(evt.data));
-    } catch {}
-  };
-  ws.onclose = () => setTimeout(setupWebSocket, 2000);
-}
-
-function postAction(path) {
-  // Small helper for POST actions.
-  return fetch(path, { method: "POST" });
-}
-
-function logAction(message) {
-  if (!actionLog) {
-    return;
+        // Show panel only if no WiFi configured
+        if (!cfg.wifiSsid) {
+          setupPanel.classList.remove("hidden");
+          setupPanel.style.display = "";
+        }
+        setupPanelLocked = true; // Lock - never change visibility again
+      })
+      .catch(() => {
+        // Network error in AP mode - show setup
+        setupPanel.classList.remove("hidden");
+        setupPanel.style.display = "";
+        setupPanelLocked = true;
+      });
   }
-  const time = new Date().toLocaleTimeString();
-  const line = document.createElement("div");
-  line.textContent = `[${time}] ${message}`;
-  actionLog.prepend(line);
-  const entries = actionLog.querySelectorAll("div");
-  if (entries.length > 20) {
-    entries[entries.length - 1].remove();
-  }
-}
 
-powerBtn.addEventListener("click", () => {
-  postAction("/api/action/power");
-  logAction("Power pulse requested");
-});
-
-function resetHoldStart() {
-  // Start 3-second hold timer with visual progress.
-  holdStart = Date.now();
-  holdTimer = setInterval(() => {
-    const elapsed = Date.now() - holdStart;
-    const pct = Math.min(100, (elapsed / 3000) * 100);
-    holdProgress.style.width = `${pct}%`;
-    if (elapsed >= 3000) {
-      resetHoldStop(true);
+  // Status display - simple direct updates
+  function updateStatus(data) {
+    if (data.hostname) {
+      deviceInfo.textContent = data.hostname + (data.deviceId ? " • " + data.deviceId : "");
     }
-  }, 50);
-}
-
-function resetHoldStop(trigger) {
-  // Stop hold timer; trigger reset if completed.
-  if (holdTimer) {
-    clearInterval(holdTimer);
-    holdTimer = null;
-  }
-  holdProgress.style.width = "0%";
-  if (trigger) {
-    postAction("/api/action/reset");
-    logAction("Reset pulse requested (hold)");
-  }
-}
-
-resetHoldBtn.addEventListener("mousedown", resetHoldStart);
-resetHoldBtn.addEventListener("touchstart", resetHoldStart);
-["mouseup", "mouseleave", "touchend", "touchcancel"].forEach((evt) => {
-  resetHoldBtn.addEventListener(evt, () => resetHoldStop(false));
-});
-
-resetSlider.addEventListener("input", () => {
-  // Slider unlocks reset at 100%.
-  if (Number(resetSlider.value) >= 100) {
-    resetSlider.value = 0;
-    postAction("/api/action/reset");
-    logAction("Reset pulse requested (slider)");
-  }
-});
-
-setupForm.addEventListener("submit", (evt) => {
-  // Save config to the device.
-  evt.preventDefault();
-  const payload = {
-    wifiSsid: document.getElementById("wifi-ssid").value.trim(),
-    wifiPass: document.getElementById("wifi-pass").value,
-    mqttHost: document.getElementById("mqtt-host").value.trim(),
-    mqttPort: Number(document.getElementById("mqtt-port").value || 1883),
-    mqttUser: document.getElementById("mqtt-user").value.trim(),
-    mqttPass: document.getElementById("mqtt-pass").value,
-  };
-  fetch("/api/config", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-});
-
-// Pre-fill setup form and show onboarding if WiFi missing.
-fetch("/api/config")
-  .then((res) => res.json())
-  .then((cfg) => {
-    document.getElementById("wifi-ssid").value = cfg.wifiSsid || "";
-    document.getElementById("mqtt-host").value = cfg.mqttHost || "";
-    document.getElementById("mqtt-port").value = cfg.mqttPort || 1883;
-    document.getElementById("mqtt-user").value = cfg.mqttUser || "";
-    if (!cfg.wifiSsid) {
-      setupPanel.classList.remove("hidden");
+    if (data.pcState) {
+      pcState.textContent = data.pcState;
     }
-  })
-  .catch(() => {
-    setupPanel.classList.remove("hidden");
+    if (typeof data.apMode === "boolean" || typeof data.wifiConnected === "boolean") {
+      if (data.apMode) {
+        wifiState.textContent = "AP Mode";
+      } else if (data.wifiConnected) {
+        wifiState.textContent = "Connected";
+      } else {
+        wifiState.textContent = "Disconnected";
+      }
+    }
+    if (data.ssid) {
+      wifiSsidDisplay.textContent = data.ssid;
+    }
+    if (data.ip !== undefined) {
+      wifiIp.textContent = data.ip || "—";
+    }
+    if (typeof data.rssi === "number") {
+      wifiRssi.textContent = data.rssi ? data.rssi + " dBm" : "—";
+      updateSignalBars(data.rssi);
+    }
+  }
+
+  // Signal strength bars
+  function updateSignalBars(rssi) {
+    const bars = signalBars.querySelectorAll("[data-bar]");
+    let level = 0;
+    if (rssi <= -80 || rssi === 0) level = 0;
+    else if (rssi <= -70) level = 1;
+    else if (rssi <= -60) level = 2;
+    else if (rssi <= -50) level = 3;
+    else level = 4;
+    bars.forEach(function (bar) {
+      const n = parseInt(bar.dataset.bar, 10);
+      bar.classList.toggle("bg-emerald-500", n <= level);
+      bar.classList.toggle("bg-slate-600", n > level);
+    });
+  }
+
+  // Action log
+  function addLog(msg) {
+    const entry = document.createElement("div");
+    entry.textContent = "[" + new Date().toLocaleTimeString() + "] " + msg;
+    actionLog.prepend(entry);
+    while (actionLog.children.length > 20) {
+      actionLog.lastChild.remove();
+    }
+  }
+
+  // WebSocket - only for live status and logs
+  let ws = null;
+  let retryDelay = 500;
+
+  function connectWs() {
+    const proto = location.protocol === "https:" ? "wss:" : "ws:";
+    ws = new WebSocket(proto + "//" + location.host + "/ws");
+
+    ws.onopen = function () {
+      retryDelay = 500;
+    };
+
+    ws.onmessage = function (e) {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === "log") {
+          addLog(msg.message || "Action");
+        } else {
+          updateStatus(msg);
+        }
+      } catch (err) {
+        // Ignore parse errors
+      }
+    };
+
+    ws.onclose = function () {
+      setTimeout(connectWs, retryDelay + Math.random() * 200);
+      retryDelay = Math.min(retryDelay * 2, 8000);
+    };
+  }
+
+  // API actions
+  function postAction(endpoint) {
+    fetch(endpoint, { method: "POST" }).catch(function () {});
+  }
+
+  // Hold button factory
+  function setupHoldButton(btn, progressBar, endpoint) {
+    let timer = null;
+    let start = 0;
+
+    function beginHold(e) {
+      e.preventDefault();
+      start = Date.now();
+      timer = setInterval(function () {
+        const elapsed = Date.now() - start;
+        const pct = Math.min(100, (elapsed / 3000) * 100);
+        progressBar.style.width = pct + "%";
+        if (elapsed >= 3000) {
+          endHold(true);
+        }
+      }, 50);
+    }
+
+    function endHold(trigger) {
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+      progressBar.style.width = "0%";
+      if (trigger) {
+        postAction(endpoint);
+      }
+    }
+
+    btn.addEventListener("mousedown", beginHold);
+    btn.addEventListener("touchstart", beginHold);
+    btn.addEventListener("mouseup", function () { endHold(false); });
+    btn.addEventListener("mouseleave", function () { endHold(false); });
+    btn.addEventListener("touchend", function () { endHold(false); });
+    btn.addEventListener("touchcancel", function () { endHold(false); });
+  }
+
+  setupHoldButton(powerBtn, powerProgress, "/api/action/power");
+  setupHoldButton(resetHoldBtn, resetProgress, "/api/action/reset");
+
+  // Setup form submit
+  setupForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    const payload = {
+      wifiSsid: $("wifi-ssid").value.trim(),
+      wifiPass: $("wifi-pass").value,
+      mqttHost: $("mqtt-host").value.trim(),
+      mqttPort: parseInt($("mqtt-port").value, 10) || 1883,
+      mqttUser: $("mqtt-user").value.trim(),
+      mqttPass: $("mqtt-pass").value
+    };
+    fetch("/api/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(function () {
+      setupPanel.classList.add("hidden");
+      setupPanel.style.display = "none";
+    }).catch(function () {});
   });
 
-// Start UI updates.
-fetchStatus();
-setupWebSocket();
+  // Initialize
+  initSetupPanel();
+  connectWs();
+})();

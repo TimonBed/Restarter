@@ -1,24 +1,4 @@
-/* Slider styling for reset unlock */
-input[type="range"] {
-  appearance: none;
-  height: 8px;
-  background: #1e293b;
-  border-radius: 999px;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 999px;
-  background: #f43f5e;
-  border: none;
-}
-
-input[type="range"]::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  border-radius: 999px;
-  background: #f43f5e;
-  border: none;
+/* Ensure hidden class works even before Tailwind loads */
+.hidden {
+  display: none !important;
 }
