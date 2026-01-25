@@ -9,11 +9,13 @@
   </head>
   <body class="bg-slate-950 text-slate-100 min-h-screen">
     <main class="max-w-xl mx-auto p-4 space-y-4">
+      <!-- Device header -->
       <header class="rounded-xl bg-slate-900 p-4">
         <h1 class="text-xl font-semibold">Restarter</h1>
         <p class="text-sm text-slate-400" id="device-info">Loading…</p>
       </header>
 
+      <!-- Live status -->
       <section class="rounded-xl bg-slate-900 p-4 space-y-2">
         <div class="flex items-center justify-between">
           <span class="text-sm text-slate-400">PC State</span>
@@ -25,6 +27,7 @@
         </div>
       </section>
 
+      <!-- Power control -->
       <section class="rounded-xl bg-slate-900 p-4 space-y-3">
         <h2 class="text-base font-semibold">Power</h2>
         <button id="power-btn"
@@ -33,6 +36,7 @@
         </button>
       </section>
 
+      <!-- Reset with safety hold/slide -->
       <section class="rounded-xl bg-slate-900 p-4 space-y-3">
         <h2 class="text-base font-semibold">Reset (Hold 3s)</h2>
         <div class="space-y-2">
@@ -48,6 +52,7 @@
         </div>
       </section>
 
+      <!-- Onboarding / WiFi + MQTT setup -->
       <section id="setup-panel" class="hidden rounded-xl bg-slate-900 p-4 space-y-3">
         <h2 class="text-base font-semibold">Setup</h2>
         <p class="text-xs text-slate-400">

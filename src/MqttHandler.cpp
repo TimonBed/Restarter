@@ -11,6 +11,7 @@ extern StoredConfig g_config;
 extern RuntimeState g_state;
 extern PCController g_pc;
 
+// Base topic: restarter/<deviceId>
 static String baseTopic() {
   return String("restarter/") + g_state.deviceId;
 }
@@ -36,6 +37,7 @@ static String statusTopic() {
 }
 
 static void publishDiscovery() {
+  // Publish Home Assistant discovery payloads (Switch + Button).
   StaticJsonDocument<512> device;
   device["ids"][0] = g_state.deviceId;
   device["name"] = String("Restarter ") + g_state.deviceId;
@@ -76,6 +78,7 @@ static void publishDiscovery() {
 }
 
 static void mqttCallback(char *topic, byte *payload, unsigned int length) {
+  // React to MQTT commands from HA or other clients.
   String topicStr(topic);
   if (topicStr == powerCommandTopic()) {
     g_pc.pulsePower();
@@ -85,10 +88,12 @@ static void mqttCallback(char *topic, byte *payload, unsigned int length) {
 }
 
 void MqttHandler_setup() {
+  // Register the MQTT callback handler.
   g_mqttClient.setCallback(mqttCallback);
 }
 
 static bool connectMqtt() {
+  // Connect to MQTT with optional username/password.
   if (g_config.mqttHost.length() == 0) {
     return false;
   }
@@ -122,6 +127,7 @@ static bool connectMqtt() {
 }
 
 void MqttHandler_loop() {
+  // Keep MQTT connected; retry on a timer.
   static uint32_t lastAttemptMs = 0;
   if (!g_state.wifiConnected || g_config.mqttHost.length() == 0) {
     return;
@@ -137,6 +143,7 @@ void MqttHandler_loop() {
 }
 
 void MqttHandler_publishState() {
+  // Publish power + status topics for dashboards/automation.
   if (!g_mqttClient.connected()) {
     return;
   }

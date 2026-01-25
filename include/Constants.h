@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+// High-level PC state derived from LEDs and actions.
 enum class PCState : uint8_t {
   OFF = 0,
   BOOTING,
@@ -9,6 +10,7 @@ enum class PCState : uint8_t {
   RESTARTING,
 };
 
+// Stored configuration loaded/saved to LittleFS.
 struct StoredConfig {
   String wifiSsid;
   String wifiPass;
@@ -18,6 +20,7 @@ struct StoredConfig {
   String mqttPass;
 };
 
+// Current runtime status shared with UI/MQTT.
 struct RuntimeState {
   String hostname;
   String deviceId;

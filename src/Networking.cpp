@@ -10,9 +10,10 @@
 extern StoredConfig g_config;
 extern RuntimeState g_state;
 
-static DNSServer g_dnsServer;
+static DNSServer g_dnsServer; // Captive portal DNS for AP mode
 
 static String formatDeviceId(uint64_t mac) {
+  // Turn MAC into a short, stable ID string.
   char buf[13] = {0};
   snprintf(buf, sizeof(buf), "%02x%02x%02x%02x%02x%02x",
            (uint8_t)(mac >> 40), (uint8_t)(mac >> 32),
@@ -22,16 +23,19 @@ static String formatDeviceId(uint64_t mac) {
 }
 
 static void loadIdentity() {
+  // Use MAC to build a unique hostname (no default passwords).
   uint64_t mac = ESP.getEfuseMac();
   g_state.deviceId = formatDeviceId(mac);
   g_state.hostname = String(Config::HOSTNAME_PREFIX) + g_state.deviceId;
 }
 
 bool Networking_hasConfig() {
+  // WiFi SSID present means user configured WiFi.
   return g_config.wifiSsid.length() > 0;
 }
 
 bool Networking_loadConfig() {
+  // Read saved config from LittleFS.
   if (!LittleFS.exists(Config::CONFIG_PATH)) {
     return false;
   }
@@ -56,6 +60,7 @@ bool Networking_loadConfig() {
 }
 
 bool Networking_saveConfig(const StoredConfig &cfg) {
+  // Save config to LittleFS so it persists across reboots.
   StaticJsonDocument<512> doc;
   doc["wifiSsid"] = cfg.wifiSsid;
   doc["wifiPass"] = cfg.wifiPass;
@@ -78,6 +83,7 @@ bool Networking_saveConfig(const StoredConfig &cfg) {
 }
 
 static bool connectSta() {
+  // Connect to a WiFi router using stored credentials.
   if (!Networking_hasConfig()) {
     return false;
   }
@@ -94,6 +100,7 @@ static bool connectSta() {
 }
 
 static void startAp() {
+  // Start Access Point for first-time setup.
   WiFi.mode(WIFI_AP);
   String ssid = String(Config::AP_SSID_PREFIX) + g_state.deviceId.substring(6);
   WiFi.softAP(ssid.c_str());
@@ -103,6 +110,7 @@ static void startAp() {
 }
 
 void Networking_setup() {
+  // Identity + storage + WiFi selection.
   loadIdentity();
   if (!LittleFS.begin(true)) {
     // LittleFS failed; continue without storage
@@ -117,10 +125,12 @@ void Networking_setup() {
 }
 
 void Networking_loop() {
+  // Keep WiFi and captive portal alive.
   static uint32_t lastAttemptMs = 0;
   static uint32_t apStartMs = millis();
 
   if (g_state.apMode) {
+    // DNS redirect so phones open the portal.
     g_dnsServer.processNextRequest();
     if (millis() - apStartMs > Config::AP_IDLE_TIMEOUT_MS && Networking_hasConfig()) {
       ESP.restart();

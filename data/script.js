@@ -1,3 +1,4 @@
+// Cache DOM elements once.
 const deviceInfo = document.getElementById("device-info");
 const pcState = document.getElementById("pc-state");
 const wifiState = document.getElementById("wifi-state");
@@ -8,10 +9,11 @@ const resetSlider = document.getElementById("reset-slider");
 const setupPanel = document.getElementById("setup-panel");
 const setupForm = document.getElementById("setup-form");
 
-let holdTimer = null;
-let holdStart = null;
+let holdTimer = null; // Interval for hold-to-reset progress
+let holdStart = null; // Timestamp when hold started
 
 function setStatus(data) {
+  // Update UI labels from the status payload.
   deviceInfo.textContent = `${data.hostname || "unknown"} • ${data.deviceId || ""}`;
   pcState.textContent = data.pcState || "—";
   wifiState.textContent = data.apMode ? "AP Mode" : (data.wifiConnected ? "Connected" : "Disconnected");
@@ -21,6 +23,7 @@ function setStatus(data) {
 }
 
 function fetchStatus() {
+  // Fallback polling if WebSocket drops.
   fetch("/api/status")
     .then((res) => res.json())
     .then(setStatus)
@@ -28,6 +31,7 @@ function fetchStatus() {
 }
 
 function setupWebSocket() {
+  // Live updates via WebSocket.
   const protocol = location.protocol === "https:" ? "wss" : "ws";
   const ws = new WebSocket(`${protocol}://${location.host}/ws`);
   ws.onmessage = (evt) => {
@@ -39,6 +43,7 @@ function setupWebSocket() {
 }
 
 function postAction(path) {
+  // Small helper for POST actions.
   return fetch(path, { method: "POST" });
 }
 
@@ -47,6 +52,7 @@ powerBtn.addEventListener("click", () => {
 });
 
 function resetHoldStart() {
+  // Start 3-second hold timer with visual progress.
   holdStart = Date.now();
   holdTimer = setInterval(() => {
     const elapsed = Date.now() - holdStart;
@@ -59,6 +65,7 @@ function resetHoldStart() {
 }
 
 function resetHoldStop(trigger) {
+  // Stop hold timer; trigger reset if completed.
   if (holdTimer) {
     clearInterval(holdTimer);
     holdTimer = null;
@@ -76,6 +83,7 @@ resetHoldBtn.addEventListener("touchstart", resetHoldStart);
 });
 
 resetSlider.addEventListener("input", () => {
+  // Slider unlocks reset at 100%.
   if (Number(resetSlider.value) >= 100) {
     resetSlider.value = 0;
     postAction("/api/action/reset");
@@ -83,6 +91,7 @@ resetSlider.addEventListener("input", () => {
 });
 
 setupForm.addEventListener("submit", (evt) => {
+  // Save config to the device.
   evt.preventDefault();
   const payload = {
     wifiSsid: document.getElementById("wifi-ssid").value.trim(),
@@ -99,6 +108,7 @@ setupForm.addEventListener("submit", (evt) => {
   });
 });
 
+// Pre-fill setup form and show onboarding if WiFi missing.
 fetch("/api/config")
   .then((res) => res.json())
   .then((cfg) => {
@@ -114,5 +124,6 @@ fetch("/api/config")
     setupPanel.classList.remove("hidden");
   });
 
+// Start UI updates.
 fetchStatus();
 setupWebSocket();
