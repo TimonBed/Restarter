@@ -128,13 +128,16 @@ void WebInterface_setup() {
 
   g_server.on("/api/config", HTTP_GET, [](AsyncWebServerRequest *request) {
     // Return current config (no passwords).
-    StaticJsonDocument<256> doc;
+    StaticJsonDocument<384> doc;
     doc["wifiSsid"] = g_config.wifiSsid;
     doc["mqttHost"] = g_config.mqttHost;
     doc["mqttPort"] = g_config.mqttPort;
     doc["mqttUser"] = g_config.mqttUser;
     doc["hasWifiPass"] = g_config.wifiPass.length() > 0;
     doc["hasMqttPass"] = g_config.mqttPass.length() > 0;
+    doc["powerPulseMs"] = g_config.powerPulseMs;
+    doc["resetPulseMs"] = g_config.resetPulseMs;
+    doc["bootGraceMs"] = g_config.bootGraceMs;
     String out;
     serializeJson(doc, out);
     request->send(200, "application/json", out);
@@ -151,6 +154,9 @@ void WebInterface_setup() {
         cfg.mqttPort = obj["mqttPort"] | 1883;
         cfg.mqttUser = obj["mqttUser"] | "";
         cfg.mqttPass = obj["mqttPass"] | "";
+        cfg.powerPulseMs = obj["powerPulseMs"] | 500;
+        cfg.resetPulseMs = obj["resetPulseMs"] | 250;
+        cfg.bootGraceMs = obj["bootGraceMs"] | 60000;
 
         if (cfg.wifiSsid.length() == 0) {
           request->send(400, "application/json", "{\"error\":\"wifiSsid required\"}");

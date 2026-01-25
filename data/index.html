@@ -74,6 +74,30 @@
         </div>
       </section>
 
+      <!-- Settings -->
+      <section class="rounded-xl bg-slate-900 p-4 space-y-3">
+        <h2 class="text-base font-semibold">Timing Settings</h2>
+        <form id="timing-form" class="space-y-2">
+          <div class="flex gap-2">
+            <div class="flex-1">
+              <label class="text-xs text-slate-400">Power Pulse (ms)</label>
+              <input id="power-pulse-ms" type="number" class="w-full rounded-lg bg-slate-800 p-2" value="500" min="100" max="5000" />
+            </div>
+            <div class="flex-1">
+              <label class="text-xs text-slate-400">Reset Pulse (ms)</label>
+              <input id="reset-pulse-ms" type="number" class="w-full rounded-lg bg-slate-800 p-2" value="250" min="100" max="5000" />
+            </div>
+          </div>
+          <div>
+            <label class="text-xs text-slate-400">Boot Grace Period (ms)</label>
+            <input id="boot-grace-ms" type="number" class="w-full rounded-lg bg-slate-800 p-2" value="60000" min="1000" max="300000" />
+          </div>
+          <button type="submit" class="w-full rounded-lg bg-slate-700 hover:bg-slate-600 py-2 font-semibold text-sm">
+            Save Timing
+          </button>
+        </form>
+      </section>
+
       <!-- Action log -->
       <section class="rounded-xl bg-slate-900 p-4 space-y-3">
         <h2 class="text-base font-semibold">Action Log</h2>

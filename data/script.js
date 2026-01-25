@@ -18,6 +18,7 @@
   const actionLog = $("action-log");
   const setupPanel = $("setup-panel");
   const setupForm = $("setup-form");
+  const timingForm = $("timing-form");
 
   // Setup panel: determined ONCE on load, never touched by WebSocket
   let setupPanelLocked = false;
@@ -31,6 +32,10 @@
         $("mqtt-host").value = cfg.mqttHost || "";
         $("mqtt-port").value = cfg.mqttPort || 1883;
         $("mqtt-user").value = cfg.mqttUser || "";
+        // Timing fields
+        $("power-pulse-ms").value = cfg.powerPulseMs || 500;
+        $("reset-pulse-ms").value = cfg.resetPulseMs || 250;
+        $("boot-grace-ms").value = cfg.bootGraceMs || 60000;
 
         // Show panel only if no WiFi configured
         if (!cfg.wifiSsid) {
@@ -187,7 +192,10 @@
       mqttHost: $("mqtt-host").value.trim(),
       mqttPort: parseInt($("mqtt-port").value, 10) || 1883,
       mqttUser: $("mqtt-user").value.trim(),
-      mqttPass: $("mqtt-pass").value
+      mqttPass: $("mqtt-pass").value,
+      powerPulseMs: parseInt($("power-pulse-ms").value, 10) || 500,
+      resetPulseMs: parseInt($("reset-pulse-ms").value, 10) || 250,
+      bootGraceMs: parseInt($("boot-grace-ms").value, 10) || 60000
     };
     fetch("/api/config", {
       method: "POST",
@@ -197,6 +205,35 @@
       setupPanel.classList.add("hidden");
       setupPanel.style.display = "none";
     }).catch(function () {});
+  });
+
+  // Timing form submit (saves timing without reboot)
+  timingForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then((cfg) => {
+        const payload = {
+          wifiSsid: cfg.wifiSsid || "",
+          wifiPass: "",
+          mqttHost: cfg.mqttHost || "",
+          mqttPort: cfg.mqttPort || 1883,
+          mqttUser: cfg.mqttUser || "",
+          mqttPass: "",
+          powerPulseMs: parseInt($("power-pulse-ms").value, 10) || 500,
+          resetPulseMs: parseInt($("reset-pulse-ms").value, 10) || 250,
+          bootGraceMs: parseInt($("boot-grace-ms").value, 10) || 60000
+        };
+        return fetch("/api/config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+      })
+      .then(function () {
+        addLog("Timing saved - rebooting...");
+      })
+      .catch(function () {});
   });
 
   // Initialize

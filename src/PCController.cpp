@@ -1,5 +1,8 @@
 #include <Arduino.h>
 #include "PCController.h"
+#include "Constants.h"
+
+extern StoredConfig g_config;
 
 void PCController::begin() {
   // Configure input/output pins and default safe output states.
@@ -33,14 +36,14 @@ void PCController::setOutputsInactive() {
 }
 
 void PCController::pulsePower() {
-  // Short press for power switch.
-  powerPulseUntilMs = millis() + Config::POWER_PULSE_MS;
+  // Short press for power switch (duration from config).
+  powerPulseUntilMs = millis() + g_config.powerPulseMs;
   setRelay(Config::PIN_RELAY_POWER, true, Config::POWER_RELAY_ACTIVE_HIGH);
 }
 
 void PCController::pulseReset() {
-  // Short press for reset switch.
-  resetPulseUntilMs = millis() + Config::RESET_PULSE_MS;
+  // Short press for reset switch (duration from config).
+  resetPulseUntilMs = millis() + g_config.resetPulseMs;
   setRelay(Config::PIN_RELAY_RESET, true, Config::RESET_RELAY_ACTIVE_HIGH);
 }
 
@@ -84,7 +87,7 @@ void PCController::updateState(uint32_t nowMs) {
     currentState = PCState::RESTARTING;
   } else if (!currentPowerSignal) {
     currentState = PCState::OFF;
-  } else if ((nowMs - lastPowerOnMs) < Config::BOOT_GRACE_MS) {
+  } else if ((nowMs - lastPowerOnMs) < g_config.bootGraceMs) {
     currentState = PCState::BOOTING;
   } else {
     currentState = PCState::RUNNING;

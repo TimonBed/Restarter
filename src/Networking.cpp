@@ -44,6 +44,9 @@ bool Networking_loadConfig() {
   g_config.mqttPort = g_prefs.getUShort("mqttPort", 1883);
   g_config.mqttUser = g_prefs.getString("mqttUser", "");
   g_config.mqttPass = g_prefs.getString("mqttPass", "");
+  g_config.powerPulseMs = g_prefs.getULong("powerPulseMs", 500);
+  g_config.resetPulseMs = g_prefs.getULong("resetPulseMs", 250);
+  g_config.bootGraceMs = g_prefs.getULong("bootGraceMs", 60000);
   g_prefs.end();
   return Networking_hasConfig();
 }
@@ -57,6 +60,9 @@ bool Networking_saveConfig(const StoredConfig &cfg) {
   g_prefs.putUShort("mqttPort", cfg.mqttPort);
   g_prefs.putString("mqttUser", cfg.mqttUser);
   g_prefs.putString("mqttPass", cfg.mqttPass);
+  g_prefs.putULong("powerPulseMs", cfg.powerPulseMs);
+  g_prefs.putULong("resetPulseMs", cfg.resetPulseMs);
+  g_prefs.putULong("bootGraceMs", cfg.bootGraceMs);
   g_prefs.end();
   g_config = cfg;
   return true;

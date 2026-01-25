@@ -10,7 +10,7 @@ enum class PCState : uint8_t {
   RESTARTING,
 };
 
-// Stored configuration loaded/saved to LittleFS.
+// Stored configuration loaded/saved to NVS.
 struct StoredConfig {
   String wifiSsid;
   String wifiPass;
@@ -18,6 +18,10 @@ struct StoredConfig {
   uint16_t mqttPort = 1883;
   String mqttUser;
   String mqttPass;
+  // Timing settings (ms)
+  uint32_t powerPulseMs = 500;
+  uint32_t resetPulseMs = 250;
+  uint32_t bootGraceMs = 60000;
 };
 
 // Current runtime status shared with UI/MQTT.
