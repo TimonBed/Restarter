@@ -6,6 +6,7 @@ const powerBtn = document.getElementById("power-btn");
 const resetHoldBtn = document.getElementById("reset-hold-btn");
 const holdProgress = document.getElementById("hold-progress");
 const resetSlider = document.getElementById("reset-slider");
+const actionLog = document.getElementById("action-log");
 const setupPanel = document.getElementById("setup-panel");
 const setupForm = document.getElementById("setup-form");
 
@@ -47,8 +48,23 @@ function postAction(path) {
   return fetch(path, { method: "POST" });
 }
 
+function logAction(message) {
+  if (!actionLog) {
+    return;
+  }
+  const time = new Date().toLocaleTimeString();
+  const line = document.createElement("div");
+  line.textContent = `[${time}] ${message}`;
+  actionLog.prepend(line);
+  const entries = actionLog.querySelectorAll("div");
+  if (entries.length > 20) {
+    entries[entries.length - 1].remove();
+  }
+}
+
 powerBtn.addEventListener("click", () => {
   postAction("/api/action/power");
+  logAction("Power pulse requested");
 });
 
 function resetHoldStart() {
@@ -73,6 +89,7 @@ function resetHoldStop(trigger) {
   holdProgress.style.width = "0%";
   if (trigger) {
     postAction("/api/action/reset");
+    logAction("Reset pulse requested (hold)");
   }
 }
 
@@ -87,6 +104,7 @@ resetSlider.addEventListener("input", () => {
   if (Number(resetSlider.value) >= 100) {
     resetSlider.value = 0;
     postAction("/api/action/reset");
+    logAction("Reset pulse requested (slider)");
   }
 });
 

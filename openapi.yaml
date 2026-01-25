@@ -1,0 +1,145 @@
+openapi: 3.0.3
+info:
+  title: Restarter API
+  version: 0.1.0
+  description: REST endpoints for status, config, and control.
+servers:
+  - url: http://{device_host}
+    description: ESP32 device on your LAN
+    variables:
+      device_host:
+        default: 192.168.1.50
+paths:
+  /api/status:
+    get:
+      summary: Get current device status
+      responses:
+        "200":
+          description: Status payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Status"
+  /api/config:
+    get:
+      summary: Get current config (no passwords)
+      responses:
+        "200":
+          description: Config payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Config"
+    post:
+      summary: Save config and reboot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfigWrite"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Save failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/action/power:
+    post:
+      summary: Pulse power relay
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+  /api/action/reset:
+    post:
+      summary: Pulse reset relay
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+components:
+  schemas:
+    Status:
+      type: object
+      properties:
+        hostname:
+          type: string
+        deviceId:
+          type: string
+        apMode:
+          type: boolean
+        wifiConnected:
+          type: boolean
+        hasConfig:
+          type: boolean
+        pcState:
+          type: string
+          enum: [OFF, BOOTING, RUNNING, RESTARTING]
+        powerRelayActive:
+          type: boolean
+        resetRelayActive:
+          type: boolean
+    Config:
+      type: object
+      properties:
+        wifiSsid:
+          type: string
+        mqttHost:
+          type: string
+        mqttPort:
+          type: integer
+          format: int32
+        mqttUser:
+          type: string
+        hasWifiPass:
+          type: boolean
+        hasMqttPass:
+          type: boolean
+    ConfigWrite:
+      type: object
+      required:
+        - wifiSsid
+      properties:
+        wifiSsid:
+          type: string
+        wifiPass:
+          type: string
+        mqttHost:
+          type: string
+        mqttPort:
+          type: integer
+          format: int32
+        mqttUser:
+          type: string
+        mqttPass:
+          type: string
+    Ok:
+      type: object
+      properties:
+        ok:
+          type: boolean
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
