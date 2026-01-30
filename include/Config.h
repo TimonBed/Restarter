@@ -5,9 +5,9 @@
 namespace Config {
 constexpr char FW_VERSION[] = "0.1.0";
 // GPIO defaults for ESP32 (adjust to your wiring).
-constexpr uint8_t PIN_PWR_LED = 4;
-constexpr uint8_t PIN_RELAY_POWER = 6;
-constexpr uint8_t PIN_RELAY_RESET = 7;
+constexpr uint8_t PIN_PWR_LED = 5;
+constexpr uint8_t PIN_RELAY_POWER = 7;
+constexpr uint8_t PIN_RELAY_RESET = 6;
 
 // Signal polarity (true = active high, false = active low).
 constexpr bool PWR_LED_ACTIVE_HIGH = true;

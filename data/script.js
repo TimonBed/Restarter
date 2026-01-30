@@ -1,4 +1,4 @@
-// v2 - setup panel isolated from websocket
+// v5 - WiFi SSID dropdown with scan
 (function () {
   "use strict";
 
@@ -19,16 +19,122 @@
   const setupPanel = $("setup-panel");
   const setupForm = $("setup-form");
   const timingForm = $("timing-form");
+  const wifiSsidSelect = $("wifi-ssid");
+  const scanBtn = $("scan-btn");
 
-  // Setup panel: determined ONCE on load, never touched by WebSocket
-  let setupPanelLocked = false;
+  // Tab switching
+  function initTabs() {
+    const tabBtns = document.querySelectorAll(".tab-btn");
+    tabBtns.forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        const tabId = btn.dataset.tab;
+        // Update button states
+        tabBtns.forEach(function(b) { b.classList.remove("tab-active"); });
+        btn.classList.add("tab-active");
+        // Show/hide tab content
+        document.querySelectorAll(".tab-content").forEach(function(content) {
+          content.style.display = content.id === "tab-" + tabId ? "" : "none";
+        });
+      });
+    });
+  }
+  initTabs();
+
+  // WiFi network scanning
+  let scanPollTimer = null;
+  
+  function scanWifi() {
+    scanBtn.disabled = true;
+    scanBtn.textContent = "...";
+    
+    fetch("/api/wifi/scan")
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.scanning) {
+          // Scan in progress, poll again
+          scanPollTimer = setTimeout(scanWifi, 1500);
+          return;
+        }
+        // Got results
+        populateSsidDropdown(data.networks || []);
+        scanBtn.disabled = false;
+        scanBtn.textContent = "Scan";
+      })
+      .catch(function() {
+        scanBtn.disabled = false;
+        scanBtn.textContent = "Scan";
+      });
+  }
+  
+  function populateSsidDropdown(networks) {
+    const currentVal = wifiSsidSelect.value;
+    wifiSsidSelect.innerHTML = '<option value="">Select Network...</option>';
+    
+    // Sort by signal strength (strongest first)
+    networks.sort(function(a, b) { return b.rssi - a.rssi; });
+    
+    // Remove duplicates (keep strongest)
+    const seen = {};
+    networks.forEach(function(net) {
+      if (net.ssid && !seen[net.ssid]) {
+        seen[net.ssid] = true;
+        const opt = document.createElement("option");
+        opt.value = net.ssid;
+        const signal = net.rssi > -50 ? "●●●●" : net.rssi > -60 ? "●●●○" : net.rssi > -70 ? "●●○○" : "●○○○";
+        const lock = net.secure ? "🔒" : "";
+        opt.textContent = net.ssid + " " + signal + " " + lock;
+        wifiSsidSelect.appendChild(opt);
+      }
+    });
+    
+    // Restore previous selection if still available
+    if (currentVal) {
+      wifiSsidSelect.value = currentVal;
+    }
+  }
+  
+  scanBtn.addEventListener("click", scanWifi);
+  
+  // Auto-scan on page load when setup panel is shown
+  function triggerInitialScan() {
+    if (setupPanel.style.display !== "none") {
+      scanWifi();
+    }
+  }
+
+  // Track AP mode state
+  let isApMode = false;
+  let modeLocked = false;
+
+  // Hide STA-only sections and show setup panel in AP mode
+  function applyApMode(apMode) {
+    if (modeLocked) return;
+    isApMode = apMode;
+    
+    const staOnlySections = document.querySelectorAll("[data-sta-only]");
+    staOnlySections.forEach(function(section) {
+      section.style.display = apMode ? "none" : "";
+    });
+    
+    if (apMode) {
+      setupPanel.classList.remove("hidden");
+      setupPanel.style.display = "";
+    }
+  }
 
   function initSetupPanel() {
     fetch("/api/config")
       .then((r) => r.json())
       .then((cfg) => {
-        // Pre-fill form fields
-        $("wifi-ssid").value = cfg.wifiSsid || "";
+        // Store configured SSID to restore after scan
+        if (cfg.wifiSsid) {
+          const opt = document.createElement("option");
+          opt.value = cfg.wifiSsid;
+          opt.textContent = cfg.wifiSsid + " (configured)";
+          wifiSsidSelect.appendChild(opt);
+          wifiSsidSelect.value = cfg.wifiSsid;
+        }
+        // Pre-fill other form fields
         $("mqtt-host").value = cfg.mqttHost || "";
         $("mqtt-port").value = cfg.mqttPort || 1883;
         $("mqtt-user").value = cfg.mqttUser || "";
@@ -37,18 +143,18 @@
         $("reset-pulse-ms").value = cfg.resetPulseMs || 250;
         $("boot-grace-ms").value = cfg.bootGraceMs || 60000;
 
-        // Show panel only if no WiFi configured
+        // Check if in AP mode (no WiFi configured = AP mode)
         if (!cfg.wifiSsid) {
-          setupPanel.classList.remove("hidden");
-          setupPanel.style.display = "";
+          applyApMode(true);
+          triggerInitialScan();
         }
-        setupPanelLocked = true; // Lock - never change visibility again
+        modeLocked = true; // Lock - never change visibility again
       })
       .catch(() => {
-        // Network error in AP mode - show setup
-        setupPanel.classList.remove("hidden");
-        setupPanel.style.display = "";
-        setupPanelLocked = true;
+        // Network error likely means AP mode - show setup only
+        applyApMode(true);
+        triggerInitialScan();
+        modeLocked = true;
       });
   }
 

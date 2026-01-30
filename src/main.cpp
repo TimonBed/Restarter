@@ -40,6 +40,8 @@ void setup() {
   Networking_setup();
   WebInterface_setup();
   MqttHandler_setup();
+  // set pin 2 to high
+  digitalWrite(3, LOW);
 
   // Placeholder: Signed OTA update validation hook.
 }

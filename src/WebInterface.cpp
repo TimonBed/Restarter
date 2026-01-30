@@ -188,6 +188,33 @@ void WebInterface_setup() {
     request->send(200, "application/json", "{\"ok\":true}");
   });
 
+  g_server.on("/api/wifi/scan", HTTP_GET, [](AsyncWebServerRequest *request) {
+    // Scan for available WiFi networks.
+    int n = WiFi.scanComplete();
+    if (n == WIFI_SCAN_FAILED) {
+      WiFi.scanNetworks(true); // Start async scan
+      request->send(202, "application/json", "{\"scanning\":true}");
+      return;
+    }
+    if (n == WIFI_SCAN_RUNNING) {
+      request->send(202, "application/json", "{\"scanning\":true}");
+      return;
+    }
+    // Build JSON array of networks
+    StaticJsonDocument<1024> doc;
+    JsonArray networks = doc.createNestedArray("networks");
+    for (int i = 0; i < n && i < 15; i++) {
+      JsonObject net = networks.createNestedObject();
+      net["ssid"] = WiFi.SSID(i);
+      net["rssi"] = WiFi.RSSI(i);
+      net["secure"] = WiFi.encryptionType(i) != WIFI_AUTH_OPEN;
+    }
+    WiFi.scanDelete(); // Clear results
+    String out;
+    serializeJson(doc, out);
+    request->send(200, "application/json", out);
+  });
+
   // Captive-portal probe endpoints for Android/iOS/Windows.
   g_server.on("/generate_204", HTTP_GET, servePortal);
   g_server.on("/fwlink", HTTP_GET, servePortal);
