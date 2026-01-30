@@ -205,6 +205,19 @@
       wifiRssi.textContent = data.rssi ? data.rssi + " dBm" : "—";
       updateSignalBars(data.rssi);
     }
+    // ESP32 system stats
+    if (typeof data.cpuLoad === "number") {
+      $("esp-cpu").textContent = data.cpuLoad + "%";
+      $("esp-cpu-bar").style.width = data.cpuLoad + "%";
+    }
+    if (typeof data.freeHeap === "number" && typeof data.totalHeap === "number") {
+      const usedHeap = data.totalHeap - data.freeHeap;
+      const usedPct = Math.round((usedHeap / data.totalHeap) * 100);
+      const freeKb = Math.round(data.freeHeap / 1024);
+      const totalKb = Math.round(data.totalHeap / 1024);
+      $("esp-ram").textContent = freeKb + " / " + totalKb + " KB";
+      $("esp-ram-used").style.width = usedPct + "%";
+    }
   }
 
   // Signal strength bars

@@ -24,6 +24,12 @@ TempSensor g_tempSensor;         // TMP112 temperature sensor
 bool g_restartPending = false;
 uint32_t g_restartAtMs = 0;
 
+// CPU load tracking
+static uint32_t s_lastLoopUs = 0;
+static uint32_t s_loopTimeAccumUs = 0;
+static uint32_t s_loopCount = 0;
+static uint32_t s_lastCpuCalcMs = 0;
+
 void Networking_setup();
 void Networking_loop();
 void WebInterface_setup();
@@ -51,6 +57,8 @@ void setup() {
 }
 
 void loop() {
+  uint32_t loopStartUs = micros();
+  
   // Read inputs and update state machine.
   g_pc.update();
   g_state.pcState = g_pc.state();
@@ -62,6 +70,27 @@ void loop() {
   bool hddActive = digitalRead(Config::PIN_HDD_LED) == (Config::HDD_LED_ACTIVE_HIGH ? HIGH : LOW);
   if (hddActive) {
     g_state.lastHddActiveMs = millis();
+  }
+  
+  // Update ESP32 memory stats
+  g_state.freeHeap = ESP.getFreeHeap();
+  g_state.totalHeap = ESP.getHeapSize();
+  
+  // Calculate CPU load (based on loop busy time vs total time)
+  uint32_t loopDurationUs = micros() - loopStartUs;
+  s_loopTimeAccumUs += loopDurationUs;
+  s_loopCount++;
+  
+  if (millis() - s_lastCpuCalcMs >= 1000) {
+    // Calculate CPU load: busy time / total time * 100
+    uint32_t totalTimeUs = (millis() - s_lastCpuCalcMs) * 1000;
+    if (totalTimeUs > 0) {
+      g_state.cpuLoad = (uint8_t)((s_loopTimeAccumUs * 100) / totalTimeUs);
+      if (g_state.cpuLoad > 100) g_state.cpuLoad = 100;
+    }
+    s_loopTimeAccumUs = 0;
+    s_loopCount = 0;
+    s_lastCpuCalcMs = millis();
   }
 
   // Keep services alive.

@@ -37,7 +37,7 @@ static const char *pcStateToString(PCState state) {
 
 static String buildStatusJson() {
   // Build a compact status payload for UI + WebSocket.
-  StaticJsonDocument<384> doc;
+  StaticJsonDocument<512> doc;
   doc["type"] = "status";
   doc["hostname"] = g_state.hostname;
   doc["deviceId"] = g_state.deviceId;
@@ -48,6 +48,10 @@ static String buildStatusJson() {
   doc["powerRelayActive"] = g_state.powerRelayActive;
   doc["resetRelayActive"] = g_state.resetRelayActive;
   doc["temperature"] = g_state.temperature;
+  // ESP32 system stats
+  doc["freeHeap"] = g_state.freeHeap;
+  doc["totalHeap"] = g_state.totalHeap;
+  doc["cpuLoad"] = g_state.cpuLoad;
   // HDD last active (seconds ago, 0 if never)
   if (g_state.lastHddActiveMs > 0) {
     doc["hddLastActiveSec"] = (millis() - g_state.lastHddActiveMs) / 1000;

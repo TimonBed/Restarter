@@ -35,6 +35,10 @@ struct RuntimeState {
   bool resetRelayActive = false;
   float temperature = 0.0f;
   uint32_t lastHddActiveMs = 0;
+  // ESP32 system stats
+  uint32_t freeHeap = 0;
+  uint32_t totalHeap = 0;
+  uint8_t cpuLoad = 0;  // Approximate CPU load percentage
 };
 
 extern StoredConfig g_config;
