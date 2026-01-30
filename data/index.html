@@ -17,32 +17,39 @@
       </header>
 
       <!-- Live status (hidden in AP mode) -->
-      <section id="status-section" data-sta-only class="rounded-xl bg-slate-900 p-4 space-y-2">
-        <div class="flex items-center justify-between">
-          <span class="text-sm text-slate-400">PC State</span>
-          <span id="pc-state" class="text-sm font-semibold">—</span>
-        </div>
-        <div class="flex items-center justify-between">
-          <span class="text-sm text-slate-400">WiFi</span>
-          <span id="wifi-state" class="text-sm font-semibold">—</span>
-        </div>
-        <div class="flex items-center justify-between">
-          <span class="text-sm text-slate-400">SSID</span>
-          <span id="wifi-ssid-display" class="text-sm font-semibold">—</span>
-        </div>
-        <div class="flex items-center justify-between">
-          <span class="text-sm text-slate-400">IP</span>
-          <span id="wifi-ip" class="text-sm font-semibold">—</span>
-        </div>
-        <div class="flex items-center justify-between">
-          <span class="text-sm text-slate-400">Signal</span>
-          <div class="flex items-center gap-2">
-            <span id="wifi-rssi" class="text-sm font-semibold">—</span>
-            <div id="signal-bars" class="flex items-end gap-0.5 h-4">
-              <div class="w-1 h-1 rounded-sm bg-slate-600" data-bar="1"></div>
-              <div class="w-1 h-2 rounded-sm bg-slate-600" data-bar="2"></div>
-              <div class="w-1 h-3 rounded-sm bg-slate-600" data-bar="3"></div>
-              <div class="w-1 h-4 rounded-sm bg-slate-600" data-bar="4"></div>
+      <section id="status-section" data-sta-only class="rounded-xl bg-slate-900 p-4">
+        <div class="status-grid">
+          <div class="status-card">
+            <div class="status-label">PC State</div>
+            <div id="pc-state" class="status-value">—</div>
+          </div>
+          <div class="status-card">
+            <div class="status-label">Temperature</div>
+            <div id="temperature" class="status-value">—</div>
+          </div>
+          <div class="status-card">
+            <div class="status-label">HDD Activity</div>
+            <div id="hdd-last-active" class="status-value">—</div>
+          </div>
+          <div class="status-card">
+            <div class="status-label">WiFi</div>
+            <div id="wifi-state" class="status-value">—</div>
+            <div class="status-sub" id="wifi-ssid-display">—</div>
+          </div>
+          <div class="status-card">
+            <div class="status-label">IP Address</div>
+            <div id="wifi-ip" class="status-value">—</div>
+          </div>
+          <div class="status-card">
+            <div class="status-label">Signal</div>
+            <div class="status-row">
+              <div id="wifi-rssi" class="status-value">—</div>
+              <div id="signal-bars" class="flex items-end gap-0.5 h-4">
+                <div class="w-1 h-1 rounded-sm bg-slate-600" data-bar="1"></div>
+                <div class="w-1 h-2 rounded-sm bg-slate-600" data-bar="2"></div>
+                <div class="w-1 h-3 rounded-sm bg-slate-600" data-bar="3"></div>
+                <div class="w-1 h-4 rounded-sm bg-slate-600" data-bar="4"></div>
+              </div>
             </div>
           </div>
         </div>

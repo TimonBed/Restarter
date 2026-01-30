@@ -6,6 +6,8 @@
   const $ = (id) => document.getElementById(id);
   const deviceInfo = $("device-info");
   const pcState = $("pc-state");
+  const tempDisplay = $("temperature");
+  const hddLastActive = $("hdd-last-active");
   const wifiState = $("wifi-state");
   const wifiSsidDisplay = $("wifi-ssid-display");
   const wifiIp = $("wifi-ip");
@@ -165,6 +167,22 @@
     }
     if (data.pcState) {
       pcState.textContent = data.pcState;
+    }
+    if (typeof data.temperature === "number") {
+      tempDisplay.textContent = data.temperature.toFixed(1) + " °C";
+    }
+    if (typeof data.hddLastActiveSec === "number") {
+      if (data.hddLastActiveSec < 0) {
+        hddLastActive.textContent = "Never";
+      } else if (data.hddLastActiveSec < 5) {
+        hddLastActive.textContent = "Active";
+      } else if (data.hddLastActiveSec < 60) {
+        hddLastActive.textContent = data.hddLastActiveSec + "s ago";
+      } else if (data.hddLastActiveSec < 3600) {
+        hddLastActive.textContent = Math.floor(data.hddLastActiveSec / 60) + "m ago";
+      } else {
+        hddLastActive.textContent = Math.floor(data.hddLastActiveSec / 3600) + "h ago";
+      }
     }
     if (typeof data.apMode === "boolean" || typeof data.wifiConnected === "boolean") {
       if (data.apMode) {

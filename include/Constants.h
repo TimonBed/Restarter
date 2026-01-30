@@ -33,6 +33,8 @@ struct RuntimeState {
   PCState pcState = PCState::OFF;
   bool powerRelayActive = false;
   bool resetRelayActive = false;
+  float temperature = 0.0f;
+  uint32_t lastHddActiveMs = 0;
 };
 
 extern StoredConfig g_config;

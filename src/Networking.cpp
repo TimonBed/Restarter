@@ -98,15 +98,25 @@ static void startAp() {
 void Networking_setup() {
   // Identity + storage + WiFi selection.
   loadIdentity();
+  
+  // WiFi error LED
+  pinMode(Config::PIN_WIFI_ERROR_LED, OUTPUT);
+  digitalWrite(Config::PIN_WIFI_ERROR_LED, LOW);
+  
   if (!LittleFS.begin(true)) {
     // LittleFS failed; continue without storage
   }
   Networking_loadConfig();
 
-  if (!connectSta()) {
+  if (!Networking_hasConfig()) {
+    // No SSID configured - start AP for setup
     startAp();
   } else {
+    // SSID configured - try to connect (will retry in loop if fails)
     g_state.apMode = false;
+    if (!connectSta()) {
+      digitalWrite(Config::PIN_WIFI_ERROR_LED, HIGH);
+    }
   }
 }
 
@@ -118,6 +128,16 @@ void Networking_loop() {
   if (g_state.apMode) {
     // DNS redirect so phones open the portal.
     g_dnsServer.processNextRequest();
+    
+    // Blink LED slowly in AP mode (1s on, 1s off)
+    static uint32_t lastBlinkMs = 0;
+    static bool ledState = false;
+    if (millis() - lastBlinkMs > 1000) {
+      lastBlinkMs = millis();
+      ledState = !ledState;
+      digitalWrite(Config::PIN_WIFI_ERROR_LED, ledState ? HIGH : LOW);
+    }
+    
     if (millis() - apStartMs > Config::AP_IDLE_TIMEOUT_MS && Networking_hasConfig()) {
       ESP.restart();
     }
@@ -126,9 +146,11 @@ void Networking_loop() {
 
   if (WiFi.status() == WL_CONNECTED) {
     g_state.wifiConnected = true;
+    digitalWrite(Config::PIN_WIFI_ERROR_LED, LOW);
     return;
   }
   g_state.wifiConnected = false;
+  digitalWrite(Config::PIN_WIFI_ERROR_LED, HIGH);
 
   if (millis() - lastAttemptMs > Config::WIFI_CONNECT_TIMEOUT_MS) {
     lastAttemptMs = millis();

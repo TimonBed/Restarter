@@ -47,6 +47,13 @@ static String buildStatusJson() {
   doc["pcState"] = pcStateToString(g_state.pcState);
   doc["powerRelayActive"] = g_state.powerRelayActive;
   doc["resetRelayActive"] = g_state.resetRelayActive;
+  doc["temperature"] = g_state.temperature;
+  // HDD last active (seconds ago, 0 if never)
+  if (g_state.lastHddActiveMs > 0) {
+    doc["hddLastActiveSec"] = (millis() - g_state.lastHddActiveMs) / 1000;
+  } else {
+    doc["hddLastActiveSec"] = -1; // never seen
+  }
   // WiFi details
   if (g_state.apMode) {
     doc["ssid"] = String(Config::AP_SSID_PREFIX) + g_state.deviceId.substring(6);
@@ -149,11 +156,14 @@ void WebInterface_setup() {
         JsonObject obj = json.as<JsonObject>();
         StoredConfig cfg;
         cfg.wifiSsid = obj["wifiSsid"] | "";
-        cfg.wifiPass = obj["wifiPass"] | "";
+        // Preserve existing passwords if not provided
+        String newWifiPass = obj["wifiPass"] | "";
+        cfg.wifiPass = newWifiPass.length() > 0 ? newWifiPass : g_config.wifiPass;
         cfg.mqttHost = obj["mqttHost"] | "";
         cfg.mqttPort = obj["mqttPort"] | 1883;
         cfg.mqttUser = obj["mqttUser"] | "";
-        cfg.mqttPass = obj["mqttPass"] | "";
+        String newMqttPass = obj["mqttPass"] | "";
+        cfg.mqttPass = newMqttPass.length() > 0 ? newMqttPass : g_config.mqttPass;
         cfg.powerPulseMs = obj["powerPulseMs"] | 500;
         cfg.resetPulseMs = obj["resetPulseMs"] | 250;
         cfg.bootGraceMs = obj["bootGraceMs"] | 60000;

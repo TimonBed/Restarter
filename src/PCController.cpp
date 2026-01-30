@@ -6,7 +6,7 @@ extern StoredConfig g_config;
 
 void PCController::begin() {
   // Configure input/output pins and default safe output states.
-  pinMode(Config::PIN_PWR_LED, INPUT);
+  pinMode(Config::PIN_PWR_LED, INPUT_PULLUP);
   pinMode(Config::PIN_RELAY_POWER, OUTPUT);
   pinMode(Config::PIN_RELAY_RESET, OUTPUT);
   setOutputsInactive();

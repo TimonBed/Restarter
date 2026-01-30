@@ -7,6 +7,7 @@
 #include "Config.h"
 #include "Constants.h"
 #include "PCController.h"
+#include "TempSensor.h"
 
 // Global singletons used across modules.
 
@@ -18,6 +19,7 @@ AsyncWebSocket g_ws("/ws");      // WebSocket for live status updates
 WiFiClient g_wifiClient;         // TCP client used by MQTT
 PubSubClient g_mqttClient(g_wifiClient); // MQTT client
 PCController g_pc;               // PC control + state machine
+TempSensor g_tempSensor;         // TMP112 temperature sensor
 
 bool g_restartPending = false;
 uint32_t g_restartAtMs = 0;
@@ -35,13 +37,15 @@ void setup() {
   // Serial is helpful for debugging on first bring-up.
   Serial.begin(115200);
   g_pc.begin();
+  g_tempSensor.begin(0, 1);  // SDA=GPIO0, SCL=GPIO1
+  pinMode(Config::PIN_HDD_LED, INPUT_PULLUP);
 
   // Start network, UI, and MQTT subsystems.
   Networking_setup();
   WebInterface_setup();
   MqttHandler_setup();
-  // set pin 2 to high
-  digitalWrite(3, LOW);
+  // set pin 3 to high
+  digitalWrite(3, HIGH);
 
   // Placeholder: Signed OTA update validation hook.
 }
@@ -52,6 +56,13 @@ void loop() {
   g_state.pcState = g_pc.state();
   g_state.powerRelayActive = g_pc.powerRelayActive();
   g_state.resetRelayActive = g_pc.resetRelayActive();
+  g_state.temperature = g_tempSensor.readTemperature();
+  
+  // Track HDD LED last active time
+  bool hddActive = digitalRead(Config::PIN_HDD_LED) == (Config::HDD_LED_ACTIVE_HIGH ? HIGH : LOW);
+  if (hddActive) {
+    g_state.lastHddActiveMs = millis();
+  }
 
   // Keep services alive.
   Networking_loop();
@@ -64,6 +75,9 @@ void loop() {
     lastStatusMs = millis();
     WebInterface_broadcastStatus();
     MqttHandler_publishState();
+    Serial.print("Temp: ");
+    Serial.print(g_tempSensor.readTemperature());
+    Serial.println(" C");
   }
 
   // Restart after saving new config.
