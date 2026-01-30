@@ -45,7 +45,7 @@ bool Networking_loadConfig() {
   g_config.mqttUser = g_prefs.getString("mqttUser", "");
   g_config.mqttPass = g_prefs.getString("mqttPass", "");
   g_config.powerPulseMs = g_prefs.getULong("powerPulseMs", 500);
-  g_config.resetPulseMs = g_prefs.getULong("resetPulseMs", 250);
+  g_config.resetPulseMs = g_prefs.getULong("resetPulseMs", 500);
   g_config.bootGraceMs = g_prefs.getULong("bootGraceMs", 60000);
   g_prefs.end();
   return Networking_hasConfig();

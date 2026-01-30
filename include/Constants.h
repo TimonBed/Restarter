@@ -20,7 +20,7 @@ struct StoredConfig {
   String mqttPass;
   // Timing settings (ms)
   uint32_t powerPulseMs = 500;
-  uint32_t resetPulseMs = 250;
+  uint32_t resetPulseMs = 500;
   uint32_t bootGraceMs = 60000;
 };
 

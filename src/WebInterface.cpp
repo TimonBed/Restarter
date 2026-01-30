@@ -165,7 +165,7 @@ void WebInterface_setup() {
         String newMqttPass = obj["mqttPass"] | "";
         cfg.mqttPass = newMqttPass.length() > 0 ? newMqttPass : g_config.mqttPass;
         cfg.powerPulseMs = obj["powerPulseMs"] | 500;
-        cfg.resetPulseMs = obj["resetPulseMs"] | 250;
+        cfg.resetPulseMs = obj["resetPulseMs"] | 500;
         cfg.bootGraceMs = obj["bootGraceMs"] | 60000;
 
         if (cfg.wifiSsid.length() == 0) {
@@ -195,6 +195,13 @@ void WebInterface_setup() {
     // Pulse reset relay.
     g_pc.pulseReset();
     WebInterface_logAction("Reset pulse requested (API)");
+    request->send(200, "application/json", "{\"ok\":true}");
+  });
+
+  g_server.on("/api/action/force-power", HTTP_POST, [](AsyncWebServerRequest *request) {
+    // Force shutdown: hold power relay for 11 seconds.
+    g_pc.forcePower();
+    WebInterface_logAction("Force shutdown requested (11s hold)");
     request->send(200, "application/json", "{\"ok\":true}");
   });
 

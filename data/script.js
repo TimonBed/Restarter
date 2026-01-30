@@ -17,6 +17,8 @@
   const powerProgress = $("power-progress");
   const resetHoldBtn = $("reset-hold-btn");
   const resetProgress = $("reset-progress");
+  const forcePowerBtn = $("force-power-btn");
+  const forcePowerProgress = $("force-power-progress");
   const actionLog = $("action-log");
   const setupPanel = $("setup-panel");
   const setupForm = $("setup-form");
@@ -142,7 +144,7 @@
         $("mqtt-user").value = cfg.mqttUser || "";
         // Timing fields
         $("power-pulse-ms").value = cfg.powerPulseMs || 500;
-        $("reset-pulse-ms").value = cfg.resetPulseMs || 250;
+        $("reset-pulse-ms").value = cfg.resetPulseMs || 500;
         $("boot-grace-ms").value = cfg.bootGraceMs || 60000;
 
         // Check if in AP mode (no WiFi configured = AP mode)
@@ -277,9 +279,9 @@
       start = Date.now();
       timer = setInterval(function () {
         const elapsed = Date.now() - start;
-        const pct = Math.min(100, (elapsed / 3000) * 100);
+        const pct = Math.min(100, (elapsed / 2000) * 100);
         progressBar.style.width = pct + "%";
-        if (elapsed >= 3000) {
+        if (elapsed >= 2000) {
           endHold(true);
         }
       }, 50);
@@ -306,6 +308,7 @@
 
   setupHoldButton(powerBtn, powerProgress, "/api/action/power");
   setupHoldButton(resetHoldBtn, resetProgress, "/api/action/reset");
+  setupHoldButton(forcePowerBtn, forcePowerProgress, "/api/action/force-power");
 
   // Setup form submit
   setupForm.addEventListener("submit", function (e) {
@@ -318,7 +321,7 @@
       mqttUser: $("mqtt-user").value.trim(),
       mqttPass: $("mqtt-pass").value,
       powerPulseMs: parseInt($("power-pulse-ms").value, 10) || 500,
-      resetPulseMs: parseInt($("reset-pulse-ms").value, 10) || 250,
+      resetPulseMs: parseInt($("reset-pulse-ms").value, 10) || 500,
       bootGraceMs: parseInt($("boot-grace-ms").value, 10) || 60000
     };
     fetch("/api/config", {
@@ -345,7 +348,7 @@
           mqttUser: cfg.mqttUser || "",
           mqttPass: "",
           powerPulseMs: parseInt($("power-pulse-ms").value, 10) || 500,
-          resetPulseMs: parseInt($("reset-pulse-ms").value, 10) || 250,
+          resetPulseMs: parseInt($("reset-pulse-ms").value, 10) || 500,
           bootGraceMs: parseInt($("boot-grace-ms").value, 10) || 60000
         };
         return fetch("/api/config", {

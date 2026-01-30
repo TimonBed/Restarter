@@ -20,6 +20,8 @@ public:
   // Trigger a short press on the PC power/reset pins.
   void pulsePower();
   void pulseReset();
+  // Force shutdown: hold power for 11 seconds.
+  void forcePower();
   // Force relays to inactive (fail-safe).
   void setOutputsInactive();
 

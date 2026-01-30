@@ -47,6 +47,12 @@ void PCController::pulseReset() {
   setRelay(Config::PIN_RELAY_RESET, true, Config::RESET_RELAY_ACTIVE_HIGH);
 }
 
+void PCController::forcePower() {
+  // Long press (11 seconds) for force shutdown.
+  powerPulseUntilMs = millis() + Config::FORCE_SHUTDOWN_PULSE_MS;
+  setRelay(Config::PIN_RELAY_POWER, true, Config::POWER_RELAY_ACTIVE_HIGH);
+}
+
 void PCController::update() {
   // Main periodic handler: reads inputs, manages relay pulses, and tracks PC state.
   uint32_t nowMs = millis();  // Get the current time in milliseconds since boot

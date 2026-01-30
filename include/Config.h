@@ -20,7 +20,8 @@ constexpr bool RESET_RELAY_ACTIVE_HIGH = true; // active low default
 // Timing (milliseconds).
 constexpr uint32_t BOOT_GRACE_MS = 60000;
 constexpr uint32_t POWER_PULSE_MS = 500;
-constexpr uint32_t RESET_PULSE_MS = 250;
+constexpr uint32_t RESET_PULSE_MS = 500;
+constexpr uint32_t FORCE_SHUTDOWN_PULSE_MS = 11000; // 11 second hold for force shutdown
 constexpr uint32_t STATUS_BROADCAST_MS = 1000;
 constexpr uint32_t MQTT_RECONNECT_MS = 5000;
 constexpr uint32_t WIFI_CONNECT_TIMEOUT_MS = 15000;
