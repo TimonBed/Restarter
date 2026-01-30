@@ -1,6 +1,226 @@
 openapi: 3.0.3
 info:
   title: Restarter API
+  version: "0.1.0"
+  description: REST API for the ESP32-C3 PC Restarter.
+servers:
+  - url: /
+paths:
+  /api/status:
+    get:
+      summary: Get device status
+      responses:
+        "200":
+          description: Status payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Status"
+  /api/config:
+    get:
+      summary: Get config (no passwords)
+      responses:
+        "200":
+          description: Current config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Config"
+    post:
+      summary: Save config and reboot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfigUpdate"
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Save failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/action/power:
+    post:
+      summary: Pulse power relay
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+  /api/action/reset:
+    post:
+      summary: Pulse reset relay
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+  /api/wifi/scan:
+    get:
+      summary: Scan for WiFi networks
+      responses:
+        "200":
+          description: Scan results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WifiScanResults"
+        "202":
+          description: Scan in progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WifiScanInProgress"
+components:
+  schemas:
+    Status:
+      type: object
+      properties:
+        type:
+          type: string
+          example: status
+        hostname:
+          type: string
+        deviceId:
+          type: string
+        apMode:
+          type: boolean
+        wifiConnected:
+          type: boolean
+        hasConfig:
+          type: boolean
+        pcState:
+          type: string
+          enum: [OFF, BOOTING, RUNNING, RESTARTING, UNKNOWN]
+        powerRelayActive:
+          type: boolean
+        resetRelayActive:
+          type: boolean
+        temperature:
+          type: number
+          format: float
+        hddLastActiveSec:
+          type: integer
+          description: Seconds since last activity (-1 = never)
+        ssid:
+          type: string
+        ip:
+          type: string
+        rssi:
+          type: integer
+      required:
+        - type
+        - hostname
+        - deviceId
+        - apMode
+        - wifiConnected
+        - hasConfig
+        - pcState
+        - powerRelayActive
+        - resetRelayActive
+        - temperature
+        - hddLastActiveSec
+        - ssid
+        - ip
+        - rssi
+    Config:
+      type: object
+      properties:
+        wifiSsid:
+          type: string
+        mqttHost:
+          type: string
+        mqttPort:
+          type: integer
+        mqttUser:
+          type: string
+        hasWifiPass:
+          type: boolean
+        hasMqttPass:
+          type: boolean
+        powerPulseMs:
+          type: integer
+        resetPulseMs:
+          type: integer
+        bootGraceMs:
+          type: integer
+    ConfigUpdate:
+      type: object
+      properties:
+        wifiSsid:
+          type: string
+        wifiPass:
+          type: string
+        mqttHost:
+          type: string
+        mqttPort:
+          type: integer
+        mqttUser:
+          type: string
+        mqttPass:
+          type: string
+        powerPulseMs:
+          type: integer
+        resetPulseMs:
+          type: integer
+        bootGraceMs:
+          type: integer
+      required:
+        - wifiSsid
+    WifiScanResults:
+      type: object
+      properties:
+        networks:
+          type: array
+          items:
+            $ref: "#/components/schemas/WifiNetwork"
+    WifiScanInProgress:
+      type: object
+      properties:
+        scanning:
+          type: boolean
+    WifiNetwork:
+      type: object
+      properties:
+        ssid:
+          type: string
+        rssi:
+          type: integer
+        secure:
+          type: boolean
+    Ok:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required:
+        - ok
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+openapi: 3.0.3
+info:
+  title: Restarter API
   version: 0.1.0
   description: REST endpoints for status, config, and control.
 servers:

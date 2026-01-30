@@ -5,9 +5,13 @@ Remote PC power/reset via web UI and MQTT (Home Assistant).
 ## Hardware
 | GPIO | Function |
 |------|----------|
-| 4 | Power LED in (active high) |
-| 6 | Power relay out (active low) |
-| 7 | Reset relay out (active low) |
+| 0 | I2C0 SDA (TMP112) |
+| 1 | I2C0 SCL (TMP112) |
+| 4 | Power LED in (active low) |
+| 5 | HDD LED in (active low) |
+| 6 | Power relay out (active high) |
+| 7 | Reset relay out (active high) |
+| 10 | WiFi error LED out |
 
 ## Commands
 ```bash
@@ -26,6 +30,13 @@ pio device monitor --port COM3 --baud 115200    # Serial
 | POST | `/api/action/power` | Pulse power |
 | POST | `/api/action/reset` | Pulse reset |
 
+### `/api/status` fields
+- `pcState` (OFF/BOOTING/RUNNING/RESTARTING)
+- `powerRelayActive`, `resetRelayActive`
+- `temperature` (°C)
+- `hddLastActiveSec` (-1 = never, else seconds since activity)
+- `wifiConnected`, `apMode`, `ssid`, `ip`, `rssi`
+
 ## Setup
 1. Upload firmware + filesystem
 2. Connect to `Restarter-XXXXXX` AP
@@ -33,5 +44,6 @@ pio device monitor --port COM3 --baud 115200    # Serial
 
 ## Notes
 - WiFi config in NVS (survives uploads)
+- AP mode only starts when no SSID is set
 - Hard refresh (`Ctrl+Shift+R`) if old HTML shows
 - See `openapi.yaml` for full API docs
