@@ -18,6 +18,7 @@ extern bool g_restartPending;
 extern uint32_t g_restartAtMs;
 
 bool Networking_saveConfig(const StoredConfig &cfg);
+bool Networking_clearConfig();
 
 static const char *pcStateToString(PCState state) {
   // Map enum to a user-friendly string.
@@ -122,9 +123,10 @@ void WebInterface_setup() {
   g_server.addHandler(&g_ws);
 
   auto servePortal = [](AsyncWebServerRequest *request) {
-    // Serve the UI directly (avoid redirect loops), no caching.
-    if (LittleFS.exists("/index.html")) {
-      AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html");
+    // Serve onboarding in AP mode, otherwise main UI.
+    const char* file = g_state.apMode ? "/onboarding.html" : "/index.html";
+    if (LittleFS.exists(file)) {
+      AsyncWebServerResponse *response = request->beginResponse(LittleFS, file, "text/html");
       response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
       request->send(response);
     } else {
@@ -236,17 +238,43 @@ void WebInterface_setup() {
     request->send(200, "application/json", out);
   });
 
+  g_server.on("/api/factory-reset", HTTP_POST, [](AsyncWebServerRequest *request) {
+    // Clear all config and restart into AP mode for fresh setup.
+    WebInterface_logAction("Factory reset initiated");
+    Networking_clearConfig();
+    g_restartPending = true;
+    g_restartAtMs = millis() + 500;
+    request->send(200, "application/json", "{\"ok\":true}");
+  });
+
   // Captive-portal probe endpoints for Android/iOS/Windows.
   g_server.on("/generate_204", HTTP_GET, servePortal);
   g_server.on("/fwlink", HTTP_GET, servePortal);
   g_server.on("/hotspot-detect.html", HTTP_GET, servePortal);
   g_server.on("/connecttest.txt", HTTP_GET, servePortal);
 
-  // Serve the UI with no-cache headers (ensures fresh files after LittleFS upload).
+  // Serve static files with no-cache headers.
   g_server.serveStatic("/", LittleFS, "/")
-      .setDefaultFile("index.html")
       .setCacheControl("no-cache, no-store, must-revalidate");
+  
+  // Root path: serve onboarding in AP mode, index otherwise.
+  g_server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    const char* file = g_state.apMode ? "/onboarding.html" : "/index.html";
+    if (LittleFS.exists(file)) {
+      AsyncWebServerResponse *response = request->beginResponse(LittleFS, file, "text/html");
+      response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      request->send(response);
+    } else {
+      request->send(200, "text/plain", "UI not uploaded. Upload LittleFS data.");
+    }
+  });
+  
   g_server.onNotFound([](AsyncWebServerRequest *request) {
+    // In AP mode, redirect unknown paths to onboarding
+    if (g_state.apMode) {
+      request->redirect("/");
+      return;
+    }
     if (LittleFS.exists("/index.html")) {
       AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html");
       response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");

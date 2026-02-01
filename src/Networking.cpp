@@ -68,6 +68,16 @@ bool Networking_saveConfig(const StoredConfig &cfg) {
   return true;
 }
 
+bool Networking_clearConfig() {
+  // Clear all config from NVS - device will boot into AP mode.
+  g_prefs.begin("restarter", false); // read-write
+  g_prefs.clear();
+  g_prefs.end();
+  // Reset in-memory config
+  g_config = StoredConfig();
+  return true;
+}
+
 static bool connectSta() {
   // Connect to a WiFi router using stored credentials.
   if (!Networking_hasConfig()) {

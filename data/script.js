@@ -20,146 +20,18 @@
   const forcePowerBtn = $("force-power-btn");
   const forcePowerProgress = $("force-power-progress");
   const actionLog = $("action-log");
-  const setupPanel = $("setup-panel");
-  const setupForm = $("setup-form");
   const timingForm = $("timing-form");
-  const wifiSsidSelect = $("wifi-ssid");
-  const scanBtn = $("scan-btn");
 
-  // Tab switching
-  function initTabs() {
-    const tabBtns = document.querySelectorAll(".tab-btn");
-    tabBtns.forEach(function(btn) {
-      btn.addEventListener("click", function() {
-        const tabId = btn.dataset.tab;
-        // Update button states
-        tabBtns.forEach(function(b) { b.classList.remove("tab-active"); });
-        btn.classList.add("tab-active");
-        // Show/hide tab content
-        document.querySelectorAll(".tab-content").forEach(function(content) {
-          content.style.display = content.id === "tab-" + tabId ? "" : "none";
-        });
-      });
-    });
-  }
-  initTabs();
-
-  // WiFi network scanning
-  let scanPollTimer = null;
-  
-  function scanWifi() {
-    scanBtn.disabled = true;
-    scanBtn.textContent = "...";
-    
-    fetch("/api/wifi/scan")
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.scanning) {
-          // Scan in progress, poll again
-          scanPollTimer = setTimeout(scanWifi, 1500);
-          return;
-        }
-        // Got results
-        populateSsidDropdown(data.networks || []);
-        scanBtn.disabled = false;
-        scanBtn.textContent = "Scan";
-      })
-      .catch(function() {
-        scanBtn.disabled = false;
-        scanBtn.textContent = "Scan";
-      });
-  }
-  
-  function populateSsidDropdown(networks) {
-    const currentVal = wifiSsidSelect.value;
-    wifiSsidSelect.innerHTML = '<option value="">Select Network...</option>';
-    
-    // Sort by signal strength (strongest first)
-    networks.sort(function(a, b) { return b.rssi - a.rssi; });
-    
-    // Remove duplicates (keep strongest)
-    const seen = {};
-    networks.forEach(function(net) {
-      if (net.ssid && !seen[net.ssid]) {
-        seen[net.ssid] = true;
-        const opt = document.createElement("option");
-        opt.value = net.ssid;
-        const signal = net.rssi > -50 ? "●●●●" : net.rssi > -60 ? "●●●○" : net.rssi > -70 ? "●●○○" : "●○○○";
-        const lock = net.secure ? "🔒" : "";
-        opt.textContent = net.ssid + " " + signal + " " + lock;
-        wifiSsidSelect.appendChild(opt);
-      }
-    });
-    
-    // Restore previous selection if still available
-    if (currentVal) {
-      wifiSsidSelect.value = currentVal;
-    }
-  }
-  
-  scanBtn.addEventListener("click", scanWifi);
-  
-  // Auto-scan on page load when setup panel is shown
-  function triggerInitialScan() {
-    if (setupPanel.style.display !== "none") {
-      scanWifi();
-    }
-  }
-
-  // Track AP mode state
-  let isApMode = false;
-  let modeLocked = false;
-
-  // Hide STA-only sections and show setup panel in AP mode
-  function applyApMode(apMode) {
-    if (modeLocked) return;
-    isApMode = apMode;
-    
-    const staOnlySections = document.querySelectorAll("[data-sta-only]");
-    staOnlySections.forEach(function(section) {
-      section.style.display = apMode ? "none" : "";
-    });
-    
-    if (apMode) {
-      setupPanel.classList.remove("hidden");
-      setupPanel.style.display = "";
-    }
-  }
-
-  function initSetupPanel() {
+  function initConfig() {
     fetch("/api/config")
       .then((r) => r.json())
       .then((cfg) => {
-        // Store configured SSID to restore after scan
-        if (cfg.wifiSsid) {
-          const opt = document.createElement("option");
-          opt.value = cfg.wifiSsid;
-          opt.textContent = cfg.wifiSsid + " (configured)";
-          wifiSsidSelect.appendChild(opt);
-          wifiSsidSelect.value = cfg.wifiSsid;
-        }
-        // Pre-fill other form fields
-        $("mqtt-host").value = cfg.mqttHost || "";
-        $("mqtt-port").value = cfg.mqttPort || 1883;
-        $("mqtt-user").value = cfg.mqttUser || "";
         // Timing fields
         $("power-pulse-ms").value = cfg.powerPulseMs || 500;
         $("reset-pulse-ms").value = cfg.resetPulseMs || 500;
         $("boot-grace-ms").value = cfg.bootGraceMs || 60000;
-
-        // Check if in AP mode (no WiFi configured = AP mode)
-        if (!cfg.wifiSsid) {
-          applyApMode(true);
-          triggerInitialScan();
-        }
-        modeLocked = true; // Lock - never change visibility again
       })
-      .catch(() => {
-        // Network error likely means AP mode - show setup only
-        applyApMode(true);
-        triggerInitialScan();
-        modeLocked = true;
-      });
+      .catch(() => {});
   }
 
   // Status display - simple direct updates
@@ -323,31 +195,7 @@
   setupHoldButton(resetHoldBtn, resetProgress, "/api/action/reset");
   setupHoldButton(forcePowerBtn, forcePowerProgress, "/api/action/force-power");
 
-  // Setup form submit
-  setupForm.addEventListener("submit", function (e) {
-    e.preventDefault();
-    const payload = {
-      wifiSsid: $("wifi-ssid").value.trim(),
-      wifiPass: $("wifi-pass").value,
-      mqttHost: $("mqtt-host").value.trim(),
-      mqttPort: parseInt($("mqtt-port").value, 10) || 1883,
-      mqttUser: $("mqtt-user").value.trim(),
-      mqttPass: $("mqtt-pass").value,
-      powerPulseMs: parseInt($("power-pulse-ms").value, 10) || 500,
-      resetPulseMs: parseInt($("reset-pulse-ms").value, 10) || 500,
-      bootGraceMs: parseInt($("boot-grace-ms").value, 10) || 60000
-    };
-    fetch("/api/config", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }).then(function () {
-      setupPanel.classList.add("hidden");
-      setupPanel.style.display = "none";
-    }).catch(function () {});
-  });
-
-  // Timing form submit (saves timing without reboot)
+  // Timing form submit
   timingForm.addEventListener("submit", function (e) {
     e.preventDefault();
     fetch("/api/config")
@@ -376,7 +224,42 @@
       .catch(function () {});
   });
 
+  // Factory reset button
+  const factoryResetBtn = $("factory-reset-btn");
+  if (factoryResetBtn) {
+    factoryResetBtn.addEventListener("click", function() {
+      if (!confirm("This will clear all settings and restart in setup mode.\n\nAfter reset, connect to the ESP32's WiFi network to configure.")) {
+        return;
+      }
+      factoryResetBtn.disabled = true;
+      factoryResetBtn.textContent = "Resetting...";
+      
+      fetch("/api/factory-reset", { method: "POST" })
+        .then(function() {
+          addLog("Factory reset initiated - device will restart in AP mode");
+          factoryResetBtn.textContent = "Restarting...";
+          // Show instructions
+          var section = $("device-section");
+          if (section) {
+            section.innerHTML = '<h2 class="text-base font-semibold">Device Restarting</h2>' +
+              '<p class="text-sm text-slate-300">The device is restarting in setup mode.</p>' +
+              '<p class="text-sm text-slate-400 mt-2">To complete setup:</p>' +
+              '<ol class="text-sm text-slate-400 mt-1 space-y-1" style="list-style:decimal;padding-left:1.5rem;">' +
+              '<li>Look for WiFi network starting with <strong class="text-slate-200">Restarter-</strong></li>' +
+              '<li>Connect to that network</li>' +
+              '<li>Open <strong class="text-slate-200">192.168.4.1</strong> in your browser</li>' +
+              '</ol>';
+          }
+        })
+        .catch(function() {
+          factoryResetBtn.disabled = false;
+          factoryResetBtn.textContent = "Factory Reset & Reconfigure";
+          addLog("Factory reset failed");
+        });
+    });
+  }
+
   // Initialize
-  initSetupPanel();
+  initConfig();
   connectWs();
 })();

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <meta name="theme-color" content="#1a1a1a" />
+    <title>ESP32 Setup</title>
+    <link rel="stylesheet" href="/onboarding.css?v=1" />
+  </head>
+  <body>
+    <div id="app" class="app">
+      <!-- Header -->
+      <header class="header">
+        <div class="header-content">
+          <div class="header-brand">
+            <div class="header-logo">
+              <svg class="sparkles-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/>
+                <path d="M5 19l1 3 1-3 3-1-3-1-1-3-1 3-3 1 3 1z"/>
+              </svg>
+            </div>
+            <span class="header-title">ESP32 Adapter</span>
+          </div>
+          <button id="reset-btn" class="reset-btn hidden">
+            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+            </svg>
+            <span class="hide-mobile">Reset</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Content -->
+      <main class="main">
+        <div class="container">
+          <!-- Step Indicator (rendered by component) -->
+          <div id="step-indicator" class="step-indicator"></div>
+
+          <!-- Wizard Card -->
+          <div class="wizard-card">
+            <!-- Step 0: Welcome (rendered by device-icon component) -->
+            <div id="step-welcome" class="step-content active"></div>
+
+            <!-- Step 1: WiFi Configuration (rendered by wifi-form component) -->
+            <div id="step-wifi" class="step-content"></div>
+
+            <!-- Step 2: MQTT Configuration (rendered by mqtt-form component) -->
+            <div id="step-mqtt" class="step-content"></div>
+
+            <!-- Step 2.5: Connecting State -->
+            <div id="step-connecting" class="step-content"></div>
+
+            <!-- Step 3: Complete -->
+            <div id="step-complete" class="step-content"></div>
+          </div>
+
+          <!-- Help Link -->
+          <p class="help-text">
+            Need help? <a href="#" class="text-link">View documentation</a>
+          </p>
+        </div>
+      </main>
+    </div>
+
+    <!-- Component Scripts -->
+    <script src="/onboarding/device-icon.js?v=1"></script>
+    <script src="/onboarding/step-indicator.js?v=1"></script>
+    <script src="/onboarding/wifi-form.js?v=1"></script>
+    <script src="/onboarding/mqtt-form.js?v=1"></script>
+    <script src="/onboarding/setup-wizard.js?v=1"></script>
+  </body>
+</html>
