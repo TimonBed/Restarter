@@ -1,14 +1,19 @@
 openapi: 3.0.3
 info:
   title: Restarter API
-  version: "0.1.0"
-  description: REST API for the ESP32-C3 PC Restarter.
+  version: "0.2.0"
+  description: REST API for the ESP32-C3 PC Restarter with onboarding support.
 servers:
-  - url: /
+  - url: http://{device_host}
+    description: ESP32 device on your LAN or AP mode
+    variables:
+      device_host:
+        default: 192.168.4.1
 paths:
   /api/status:
     get:
       summary: Get device status
+      description: Returns current device state, WiFi info, and system stats.
       responses:
         "200":
           description: Status payload
@@ -19,6 +24,7 @@ paths:
   /api/config:
     get:
       summary: Get config (no passwords)
+      description: Returns current configuration without sensitive data.
       responses:
         "200":
           description: Current config
@@ -28,6 +34,7 @@ paths:
                 $ref: "#/components/schemas/Config"
     post:
       summary: Save config and reboot
+      description: Saves WiFi, MQTT, and timing configuration. Device reboots after save.
       requestBody:
         required: true
         content:
@@ -36,13 +43,13 @@ paths:
               $ref: "#/components/schemas/ConfigUpdate"
       responses:
         "200":
-          description: Saved
+          description: Saved successfully
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Ok"
         "400":
-          description: Validation error
+          description: Validation error (wifiSsid required)
           content:
             application/json:
               schema:
@@ -56,6 +63,7 @@ paths:
   /api/action/power:
     post:
       summary: Pulse power relay
+      description: Simulates pressing the power button for configured duration.
       responses:
         "200":
           description: Accepted
@@ -66,6 +74,18 @@ paths:
   /api/action/reset:
     post:
       summary: Pulse reset relay
+      description: Simulates pressing the reset button for configured duration.
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+  /api/action/force-power:
+    post:
+      summary: Force power off (11s hold)
+      description: Holds power relay for 11 seconds to force shutdown.
       responses:
         "200":
           description: Accepted
@@ -76,6 +96,7 @@ paths:
   /api/wifi/scan:
     get:
       summary: Scan for WiFi networks
+      description: Initiates or returns WiFi network scan results.
       responses:
         "200":
           description: Scan results
@@ -89,6 +110,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WifiScanInProgress"
+  /api/factory-reset:
+    post:
+      summary: Factory reset device
+      description: Clears all configuration and restarts device in AP mode for fresh setup.
+      responses:
+        "200":
+          description: Reset initiated, device will restart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
 components:
   schemas:
     Status:
@@ -99,14 +131,18 @@ components:
           example: status
         hostname:
           type: string
+          example: restarter-a1b2c3
         deviceId:
           type: string
+          example: a1b2c3d4e5f6
         apMode:
           type: boolean
+          description: True when device is in Access Point mode
         wifiConnected:
           type: boolean
         hasConfig:
           type: boolean
+          description: True if WiFi SSID is configured
         pcState:
           type: string
           enum: [OFF, BOOTING, RUNNING, RESTARTING, UNKNOWN]
@@ -117,30 +153,26 @@ components:
         temperature:
           type: number
           format: float
+          description: Temperature in Celsius from TMP112
         hddLastActiveSec:
           type: integer
-          description: Seconds since last activity (-1 = never)
+          description: Seconds since last HDD activity (-1 = never)
         ssid:
           type: string
         ip:
           type: string
         rssi:
           type: integer
-      required:
-        - type
-        - hostname
-        - deviceId
-        - apMode
-        - wifiConnected
-        - hasConfig
-        - pcState
-        - powerRelayActive
-        - resetRelayActive
-        - temperature
-        - hddLastActiveSec
-        - ssid
-        - ip
-        - rssi
+          description: WiFi signal strength in dBm
+        freeHeap:
+          type: integer
+          description: Free heap memory in bytes
+        totalHeap:
+          type: integer
+          description: Total heap memory in bytes
+        cpuLoad:
+          type: integer
+          description: Approximate CPU load percentage
     Config:
       type: object
       properties:
@@ -158,17 +190,23 @@ components:
           type: boolean
         powerPulseMs:
           type: integer
+          description: Power button pulse duration in ms
         resetPulseMs:
           type: integer
+          description: Reset button pulse duration in ms
         bootGraceMs:
           type: integer
+          description: Boot grace period before state detection in ms
     ConfigUpdate:
       type: object
+      required:
+        - wifiSsid
       properties:
         wifiSsid:
           type: string
         wifiPass:
           type: string
+          description: Leave empty to preserve existing password
         mqttHost:
           type: string
         mqttPort:
@@ -177,14 +215,13 @@ components:
           type: string
         mqttPass:
           type: string
+          description: Leave empty to preserve existing password
         powerPulseMs:
           type: integer
         resetPulseMs:
           type: integer
         bootGraceMs:
           type: integer
-      required:
-        - wifiSsid
     WifiScanResults:
       type: object
       properties:
@@ -197,6 +234,7 @@ components:
       properties:
         scanning:
           type: boolean
+          example: true
     WifiNetwork:
       type: object
       properties:
@@ -204,155 +242,10 @@ components:
           type: string
         rssi:
           type: integer
+          description: Signal strength in dBm
         secure:
           type: boolean
-    Ok:
-      type: object
-      properties:
-        ok:
-          type: boolean
-      required:
-        - ok
-    Error:
-      type: object
-      properties:
-        error:
-          type: string
-openapi: 3.0.3
-info:
-  title: Restarter API
-  version: 0.1.0
-  description: REST endpoints for status, config, and control.
-servers:
-  - url: http://{device_host}
-    description: ESP32 device on your LAN
-    variables:
-      device_host:
-        default: 192.168.1.50
-paths:
-  /api/status:
-    get:
-      summary: Get current device status
-      responses:
-        "200":
-          description: Status payload
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Status"
-  /api/config:
-    get:
-      summary: Get current config (no passwords)
-      responses:
-        "200":
-          description: Config payload
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Config"
-    post:
-      summary: Save config and reboot
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ConfigWrite"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Ok"
-        "400":
-          description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "500":
-          description: Save failure
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-  /api/action/power:
-    post:
-      summary: Pulse power relay
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Ok"
-  /api/action/reset:
-    post:
-      summary: Pulse reset relay
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Ok"
-components:
-  schemas:
-    Status:
-      type: object
-      properties:
-        hostname:
-          type: string
-        deviceId:
-          type: string
-        apMode:
-          type: boolean
-        wifiConnected:
-          type: boolean
-        hasConfig:
-          type: boolean
-        pcState:
-          type: string
-          enum: [OFF, BOOTING, RUNNING, RESTARTING]
-        powerRelayActive:
-          type: boolean
-        resetRelayActive:
-          type: boolean
-    Config:
-      type: object
-      properties:
-        wifiSsid:
-          type: string
-        mqttHost:
-          type: string
-        mqttPort:
-          type: integer
-          format: int32
-        mqttUser:
-          type: string
-        hasWifiPass:
-          type: boolean
-        hasMqttPass:
-          type: boolean
-    ConfigWrite:
-      type: object
-      required:
-        - wifiSsid
-      properties:
-        wifiSsid:
-          type: string
-        wifiPass:
-          type: string
-        mqttHost:
-          type: string
-        mqttPort:
-          type: integer
-          format: int32
-        mqttUser:
-          type: string
-        mqttPass:
-          type: string
+          description: True if network requires password
     Ok:
       type: object
       properties:
