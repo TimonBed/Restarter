@@ -11,7 +11,14 @@ Remote PC power/reset via web UI and MQTT (Home Assistant).
 | 5 | HDD LED in (active low) |
 | 6 | Power relay out (active high) |
 | 7 | Reset relay out (active high) |
-| 10 | WiFi error LED out |
+| 9 | Factory reset button (active low, hold 5s) |
+| 10 | Status LED out |
+
+### Status LED (GPIO 10)
+- OFF = WiFi connected
+- Solid ON = WiFi connection failed
+- Slow blink = AP mode
+- Accelerating blink = Factory reset in progress
 
 ## Commands
 ```bash
@@ -81,6 +88,7 @@ data/
 ## Notes
 - WiFi config stored in NVS (survives firmware uploads)
 - AP mode starts when no WiFi SSID configured
-- Factory reset clears NVS and restarts in AP mode
+- Factory reset: hold GPIO 9 button for 5s, or use web UI, or POST `/api/factory-reset`
 - Hard refresh (`Ctrl+Shift+R`) if old HTML cached
-- See `openapi.yaml` for full API documentation
+- See `MANUAL.md` for complete user documentation
+- See `openapi.yaml` for full API specification

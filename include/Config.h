@@ -10,6 +10,10 @@ constexpr uint8_t PIN_HDD_LED = 5;
 constexpr uint8_t PIN_RELAY_POWER = 6;
 constexpr uint8_t PIN_RELAY_RESET = 7;
 constexpr uint8_t PIN_WIFI_ERROR_LED = 10;
+constexpr uint8_t PIN_FACTORY_RESET = 9;
+
+// Factory reset button hold time (milliseconds).
+constexpr uint32_t FACTORY_RESET_HOLD_MS = 5000;
 
 // Signal polarity (true = active high, false = active low).
 constexpr bool PWR_LED_ACTIVE_HIGH = false; // optocoupler pulls low when PC LED on
