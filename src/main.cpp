@@ -163,4 +163,6 @@ void loop() {
   handleScheduledRestart();
   
   updateSystemStats(micros() - loopStartUs);
+  
+  delay(5);  // Yield to RTOS, prevents 100% CPU
 }
