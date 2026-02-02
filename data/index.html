@@ -8,15 +8,13 @@
   </head>
   <body class="bg-slate-950 text-slate-100 min-h-screen">
     <main class="max-w-xl mx-auto p-4 space-y-4">
-      <!-- build version -->
-      <p class="text-xs text-slate-400">Build: 8</p>
       <!-- Device header -->
       <header class="rounded-xl bg-slate-900 p-4">
         <h1 class="text-xl font-semibold">Restarter</h1>
         <p class="text-sm text-slate-400" id="device-info">Loading…</p>
       </header>
 
-      <!-- Live status (hidden in AP mode) -->
+      <!-- Live status -->
       <section id="status-section" data-sta-only class="rounded-xl bg-slate-900 p-4">
         <div class="status-grid">
           <div class="status-card">
@@ -69,7 +67,7 @@
         </div>
       </section>
 
-      <!-- Controls (hidden in AP mode) -->
+      <!-- Controls -->
       <section id="controls-section" data-sta-only class="rounded-xl bg-slate-900 p-4 space-y-3">
         <h2 class="text-base font-semibold">Controls (Hold 2s)</h2>
         <div class="flex gap-3">
@@ -103,7 +101,7 @@
         </div>
       </section>
 
-      <!-- Timing Settings (hidden in AP mode) -->
+      <!-- Timing Settings -->
       <section id="timing-section" data-sta-only class="rounded-xl bg-slate-900 p-4 space-y-3">
         <h2 class="text-base font-semibold">Timing Settings</h2>
         <form id="timing-form" class="space-y-2">
@@ -127,14 +125,14 @@
         </form>
       </section>
 
-      <!-- Action log (hidden in AP mode) -->
+      <!-- Action log -->
       <section id="log-section" data-sta-only class="rounded-xl bg-slate-900 p-4 space-y-3">
         <h2 class="text-base font-semibold">Action Log</h2>
         <div id="action-log"
           class="h-32 overflow-auto rounded-lg bg-slate-800 p-2 text-xs text-slate-300 space-y-1"></div>
       </section>
 
-      <!-- Device Settings (hidden in AP mode) -->
+      <!-- Device Settings -->
       <section id="device-section" data-sta-only class="rounded-xl bg-slate-900 p-4 space-y-3">
         <h2 class="text-base font-semibold">Device Settings</h2>
         <p class="text-xs text-slate-400">Reset device configuration and start fresh setup wizard.</p>
