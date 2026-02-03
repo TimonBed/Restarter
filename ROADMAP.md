@@ -96,9 +96,9 @@ Die CE-Kennzeichnung ist für den Verkauf elektronischer Geräte in der EU verpf
 
 | Punkt                        | Priorität | Status                                            |
 | ------------------------------ | ------------ | --------------------------------------------------- |
-| **Watchdog-Timer**           | Hoch       | ⬜ Hardware-WDT implementieren                    |
-| **Fehlerbehandlung**         | Hoch       | ⬜ Robuste Behandlung aller Fehler                |
-| **Speicherleck-Prävention** | Hoch       | ⬜ Heap-Nutzung prüfen, Überwachung hinzufügen |
+| **Watchdog-Timer**           | Hoch       | ✅ Hardware-WDT (30s Timeout, auto-restart)        |
+| **Fehlerbehandlung**         | Hoch       | ✅ Heap-kritisch → auto-restart                   |
+| **Speicherleck-Prävention** | Hoch       | ✅ Heap-Monitoring, Warnung <20KB, Restart <10KB  |
 | **Power-on-Selbsttest**      | Mittel     | ⬜ Hardware beim Booten verifizieren              |
 | **Logging-System**           | Mittel     | ⬜ Persistente Fehlerprotokollierung              |
 | **Absturzbericht**           | Mittel     | ⬜ Absturzinfos in NVS speichern                  |

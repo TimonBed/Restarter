@@ -17,12 +17,21 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <PubSubClient.h>
+#include <esp_task_wdt.h>
 
 #include "Config.h"
 #include "Constants.h"
 #include "PCController.h"
 #include "TempSensor.h"
 #include "FactoryReset.h"
+
+// =============================================================================
+// WATCHDOG & STABILITY CONFIGURATION
+// =============================================================================
+
+constexpr uint32_t WDT_TIMEOUT_SEC = 30;        // Watchdog timeout (seconds)
+constexpr uint32_t HEAP_WARNING_THRESHOLD = 20000;  // Warn if heap below 20KB
+constexpr uint32_t HEAP_CRITICAL_THRESHOLD = 10000; // Restart if below 10KB
 
 // =============================================================================
 // GLOBAL OBJECTS
@@ -54,6 +63,63 @@ void WebInterface_broadcastStatus();
 void MqttHandler_setup();
 void MqttHandler_loop();
 void MqttHandler_publishState();
+
+// =============================================================================
+// WATCHDOG & HEAP MONITORING
+// =============================================================================
+
+static uint32_t s_minFreeHeap = UINT32_MAX;  // Track minimum heap seen
+static uint32_t s_lastHeapWarnMs = 0;
+
+static void setupWatchdog() {
+  /**
+   * Initialize hardware watchdog timer.
+   * If loop() doesn't feed the WDT within timeout, device restarts.
+   */
+  esp_task_wdt_config_t wdtConfig = {
+    .timeout_ms = WDT_TIMEOUT_SEC * 1000,
+    .idle_core_mask = 0,
+    .trigger_panic = true
+  };
+  esp_task_wdt_init(&wdtConfig);
+  esp_task_wdt_add(nullptr);  // Add current task
+  Serial.printf("Watchdog enabled: %d sec timeout\n", WDT_TIMEOUT_SEC);
+}
+
+static void feedWatchdog() {
+  /**
+   * Reset watchdog timer. Must be called regularly in loop().
+   */
+  esp_task_wdt_reset();
+}
+
+static void checkHeapHealth() {
+  /**
+   * Monitor heap usage and take action if critically low.
+   * Logs warning if below threshold, restarts if critical.
+   */
+  uint32_t freeHeap = ESP.getFreeHeap();
+  
+  // Track minimum
+  if (freeHeap < s_minFreeHeap) {
+    s_minFreeHeap = freeHeap;
+  }
+  
+  // Critical: restart to recover
+  if (freeHeap < HEAP_CRITICAL_THRESHOLD) {
+    Serial.printf("CRITICAL: Heap exhausted (%u bytes). Restarting...\n", freeHeap);
+    delay(100);
+    ESP.restart();
+  }
+  
+  // Warning: log every 30 seconds
+  if (freeHeap < HEAP_WARNING_THRESHOLD) {
+    if (millis() - s_lastHeapWarnMs > 30000) {
+      s_lastHeapWarnMs = millis();
+      Serial.printf("WARNING: Low heap: %u bytes (min: %u)\n", freeHeap, s_minFreeHeap);
+    }
+  }
+}
 
 // =============================================================================
 // LOCAL HELPERS
@@ -132,6 +198,11 @@ static void handleScheduledRestart() {
 void setup() {
   Serial.begin(115200);
   Serial.println("\n\n=== PC Restarter Starting ===");
+  Serial.printf("Firmware: %s\n", Config::FW_VERSION);
+  Serial.printf("Free heap: %u bytes\n", ESP.getFreeHeap());
+  
+  // Watchdog
+  setupWatchdog();
   
   // Hardware
   g_pc.begin();
@@ -144,7 +215,8 @@ void setup() {
   WebInterface_setup();
   MqttHandler_setup();
   
-  Serial.println("=== Setup Complete ===\n");
+  Serial.printf("Setup complete. Free heap: %u bytes\n", ESP.getFreeHeap());
+  Serial.println("=== Running ===\n");
 }
 
 // =============================================================================
@@ -154,6 +226,10 @@ void setup() {
 void loop() {
   uint32_t loopStartUs = micros();
 
+  // Feed watchdog first
+  feedWatchdog();
+  
+  // Core functionality
   FactoryReset_loop();
   updatePCState();
   
@@ -164,6 +240,8 @@ void loop() {
   broadcastStatus();
   handleScheduledRestart();
   
+  // Health monitoring
+  checkHeapHealth();
   updateSystemStats(micros() - loopStartUs);
   
   delay(5);  // Yield to RTOS, prevents 100% CPU
