@@ -244,6 +244,8 @@ bool Networking_loadConfig() {
   if (Networking_hasConfig()) {
     Serial.print("Loaded WiFi SSID: ");
     Serial.println(g_config.wifiSsid);
+    Serial.print("WiFi Password: ");
+    Serial.println(g_config.wifiPass);
   } else {
     Serial.println("No WiFi config found - will start AP mode");
   }

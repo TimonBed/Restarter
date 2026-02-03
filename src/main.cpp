@@ -75,13 +75,9 @@ static void setupWatchdog() {
   /**
    * Initialize hardware watchdog timer.
    * If loop() doesn't feed the WDT within timeout, device restarts.
+   * API: esp_task_wdt_init(timeout_sec, panic) for Arduino ESP32 2.0.x (ESP-IDF 4.x)
    */
-  esp_task_wdt_config_t wdtConfig = {
-    .timeout_ms = WDT_TIMEOUT_SEC * 1000,
-    .idle_core_mask = 0,
-    .trigger_panic = true
-  };
-  esp_task_wdt_init(&wdtConfig);
+  esp_task_wdt_init(WDT_TIMEOUT_SEC, true);
   esp_task_wdt_add(nullptr);  // Add current task
   Serial.printf("Watchdog enabled: %d sec timeout\n", WDT_TIMEOUT_SEC);
 }

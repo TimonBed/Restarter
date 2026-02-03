@@ -11,6 +11,7 @@
 
 #include "FactoryReset.h"
 #include "Config.h"
+#include <esp_task_wdt.h>
 
 // External function from Networking.cpp
 extern bool Networking_clearConfig();
@@ -54,7 +55,14 @@ void FactoryReset_loop() {
         digitalWrite(Config::PIN_WIFI_ERROR_LED, HIGH);  // Solid LED
         Serial.println("!!! FACTORY RESET TRIGGERED !!!");
         Networking_clearConfig();  // Erase WiFi, MQTT, and timing settings
-        delay(100);
+        // GPIO 9 is ESP32-C3 strapping pin (LOW = download mode). Wait for
+        // button release so we don't enter bootloader on restart.
+        Serial.println("Release button to restart...");
+        while (digitalRead(Config::PIN_FACTORY_RESET) == LOW) {
+          esp_task_wdt_reset();
+          delay(50);
+        }
+        delay(200);
         ESP.restart();             // Reboot into AP mode
       } else {
         // Still holding - blink LED faster as progress increases
