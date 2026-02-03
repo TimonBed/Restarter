@@ -491,11 +491,11 @@ void WebInterface_setup() {
           cfg.mqttTls = mqtt["tls"] | false;
         } else {
           // Legacy flat format support
-          cfg.mqttHost = obj["mqttHost"] | "";
-          cfg.mqttPort = obj["mqttPort"] | 1883;
-          cfg.mqttUser = obj["mqttUser"] | "";
-          String newMqttPass = obj["mqttPass"] | "";
-          cfg.mqttPass = newMqttPass.length() > 0 ? newMqttPass : g_config.mqttPass;
+        cfg.mqttHost = obj["mqttHost"] | "";
+        cfg.mqttPort = obj["mqttPort"] | 1883;
+        cfg.mqttUser = obj["mqttUser"] | "";
+        String newMqttPass = obj["mqttPass"] | "";
+        cfg.mqttPass = newMqttPass.length() > 0 ? newMqttPass : g_config.mqttPass;
           cfg.mqttTls = obj["mqttTls"] | false;
         }
         
