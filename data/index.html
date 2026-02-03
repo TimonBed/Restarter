@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Restarter</title>
-    <link rel="stylesheet" href="/style.css?v=9" />
+    <link rel="stylesheet" href="/style.css?v=10" />
   </head>
   <body class="bg-slate-950 text-slate-100 min-h-screen">
     <main class="max-w-xl mx-auto p-4 space-y-4">
@@ -14,8 +14,16 @@
         <p class="text-sm text-slate-400" id="device-info">Loading…</p>
       </header>
 
+      <!-- Tabs: Status (status+controls), Integrations, Log, Settings (timing+device) -->
+      <nav class="tabs-nav flex gap-1 p-1 rounded-xl bg-slate-900" role="tablist">
+        <button type="button" class="tab-btn flex-1 rounded-lg py-2 px-2 text-xs font-medium tab-active" data-tab="status" role="tab">Status</button>
+        <button type="button" class="tab-btn flex-1 rounded-lg py-2 px-2 text-xs font-medium" data-tab="integrations" role="tab">Integrations</button>
+        <button type="button" class="tab-btn flex-1 rounded-lg py-2 px-2 text-xs font-medium" data-tab="log" role="tab">Log</button>
+        <button type="button" class="tab-btn flex-1 rounded-lg py-2 px-2 text-xs font-medium" data-tab="settings" role="tab">Settings</button>
+      </nav>
+
       <!-- Live status -->
-      <section id="status-section" data-sta-only class="rounded-xl bg-slate-900 p-4">
+      <section id="status-section" data-tab-panel="status" data-sta-only class="tab-panel rounded-xl bg-slate-900 p-4">
         <div class="status-grid">
           <div class="status-card">
             <div class="status-label">PC State</div>
@@ -67,8 +75,8 @@
         </div>
       </section>
 
-      <!-- Controls -->
-      <section id="controls-section" data-sta-only class="rounded-xl bg-slate-900 p-4 space-y-3">
+      <!-- Controls (shown with Status tab) -->
+      <section id="controls-section" data-tab-panel="controls" data-sta-only class="tab-panel rounded-xl bg-slate-900 p-4 space-y-3">
         <h2 class="text-base font-semibold">Controls (Hold 2s)</h2>
         <div class="flex gap-3">
           <div class="flex-1 space-y-1">
@@ -102,7 +110,7 @@
       </section>
 
       <!-- Timing Settings -->
-      <section id="timing-section" data-sta-only class="rounded-xl bg-slate-900 p-4 space-y-3">
+      <section id="timing-section" data-tab-panel="timing" data-sta-only class="tab-panel rounded-xl bg-slate-900 p-4 space-y-3 hidden">
         <h2 class="text-base font-semibold">Timing Settings</h2>
         <form id="timing-form" class="space-y-2">
           <div class="flex gap-2">
@@ -125,15 +133,84 @@
         </form>
       </section>
 
+      <!-- Integrations Settings -->
+      <section id="integrations-section" data-tab-panel="integrations" data-sta-only class="tab-panel rounded-xl bg-slate-900 p-4 space-y-4 hidden">
+        <h2 class="text-base font-semibold">Integrations</h2>
+
+        <form id="integrations-form" class="space-y-4">
+          <!-- MQTT (Home Assistant, Node-RED) -->
+          <div class="space-y-2">
+            <h3 class="text-sm font-medium text-slate-300">MQTT</h3>
+            <div class="grid gap-2">
+              <div class="flex gap-2">
+                <div class="flex-1">
+                  <label class="text-xs text-slate-400">Broker</label>
+                  <input id="mqtt-host" type="text" class="w-full rounded-lg bg-slate-800 p-2 text-sm" placeholder="mqtt.example.com" autocomplete="off" />
+                </div>
+                <div class="w-20">
+                  <label class="text-xs text-slate-400">Port</label>
+                  <input id="mqtt-port" type="number" class="w-full rounded-lg bg-slate-800 p-2 text-sm" value="1883" min="1" max="65535" />
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <div class="flex-1">
+                  <label class="text-xs text-slate-400">User</label>
+                  <input id="mqtt-user" type="text" class="w-full rounded-lg bg-slate-800 p-2 text-sm" placeholder="optional" autocomplete="off" />
+                </div>
+                <div class="flex-1">
+                  <label class="text-xs text-slate-400">Password</label>
+                  <input id="mqtt-pass" type="password" class="w-full rounded-lg bg-slate-800 p-2 text-sm" placeholder="leave blank to keep" autocomplete="new-password" />
+                </div>
+              </div>
+              <label class="flex items-center gap-2 text-sm text-slate-400">
+                <input id="mqtt-tls" type="checkbox" class="rounded bg-slate-700" />
+                Use TLS (mqtts)
+              </label>
+            </div>
+          </div>
+
+          <!-- Loki (logging) -->
+          <div class="space-y-2">
+            <h3 class="text-sm font-medium text-slate-300">Loki</h3>
+            <div class="grid gap-2">
+              <div>
+                <label class="text-xs text-slate-400">Host URL</label>
+                <input id="loki-host" type="text" class="w-full rounded-lg bg-slate-800 p-2 text-sm" placeholder="https://loki.example.com" autocomplete="off" />
+              </div>
+              <div class="flex gap-2">
+                <div class="flex-1">
+                  <label class="text-xs text-slate-400">User</label>
+                  <input id="loki-user" type="text" class="w-full rounded-lg bg-slate-800 p-2 text-sm" placeholder="optional" autocomplete="off" />
+                </div>
+                <div class="flex-1">
+                  <label class="text-xs text-slate-400">Password</label>
+                  <input id="loki-pass" type="password" class="w-full rounded-lg bg-slate-800 p-2 text-sm" placeholder="leave blank to keep" autocomplete="new-password" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Prometheus (read-only) -->
+          <div class="space-y-1">
+            <h3 class="text-sm font-medium text-slate-300">Prometheus</h3>
+            <p class="text-xs text-slate-400">Metrics at <code class="rounded bg-slate-800 px-1">/metrics</code>. No config needed.</p>
+          </div>
+
+          <button type="submit" class="w-full rounded-lg bg-slate-700 hover:bg-slate-600 py-2 font-semibold text-sm">
+            Save Integrations
+          </button>
+        </form>
+      </section>
+
       <!-- Action log -->
-      <section id="log-section" data-sta-only class="rounded-xl bg-slate-900 p-4 space-y-3">
+      <section id="log-section" data-tab-panel="log" data-sta-only class="tab-panel rounded-xl bg-slate-900 p-4 space-y-3 hidden">
         <h2 class="text-base font-semibold">Action Log</h2>
         <div id="action-log"
           class="h-32 overflow-auto rounded-lg bg-slate-800 p-2 text-xs text-slate-300 space-y-1"></div>
       </section>
 
       <!-- Device Settings -->
-      <section id="device-section" data-sta-only class="rounded-xl bg-slate-900 p-4 space-y-3">
+      <section id="device-section" data-tab-panel="settings" data-sta-only class="tab-panel rounded-xl bg-slate-900 p-4 space-y-3 hidden">
         <h2 class="text-base font-semibold">Device Settings</h2>
         <p class="text-xs text-slate-400">Reset device configuration and start fresh setup wizard.</p>
         <button id="factory-reset-btn" type="button"
@@ -144,6 +221,6 @@
 
     </main>
 
-    <script src="/script.js?v=9"></script>
+    <script src="/script.js?v=11"></script>
   </body>
 </html>

@@ -30,6 +30,20 @@
         $("power-pulse-ms").value = cfg.powerPulseMs || 500;
         $("reset-pulse-ms").value = cfg.resetPulseMs || 500;
         $("boot-grace-ms").value = cfg.bootGraceMs || 60000;
+        // Integrations: MQTT
+        if (cfg.mqtt) {
+          $("mqtt-host").value = cfg.mqtt.host || "";
+          $("mqtt-port").value = cfg.mqtt.port || 1883;
+          $("mqtt-user").value = cfg.mqtt.user || "";
+          $("mqtt-pass").value = "";
+          $("mqtt-tls").checked = !!cfg.mqtt.tls;
+        }
+        // Integrations: Loki
+        if (cfg.loki) {
+          $("loki-host").value = cfg.loki.host || "";
+          $("loki-user").value = cfg.loki.user || "";
+          $("loki-pass").value = "";
+        }
       })
       .catch(() => {});
   }
@@ -204,10 +218,8 @@
         const payload = {
           wifiSsid: cfg.wifiSsid || "",
           wifiPass: "",
-          mqttHost: cfg.mqttHost || "",
-          mqttPort: cfg.mqttPort || 1883,
-          mqttUser: cfg.mqttUser || "",
-          mqttPass: "",
+          mqtt: { host: cfg.mqtt?.host || "", port: cfg.mqtt?.port || 1883, user: cfg.mqtt?.user || "", pass: "", tls: !!cfg.mqtt?.tls },
+          loki: { host: cfg.loki?.host || "", user: cfg.loki?.user || "", pass: "" },
           powerPulseMs: parseInt($("power-pulse-ms").value, 10) || 500,
           resetPulseMs: parseInt($("reset-pulse-ms").value, 10) || 500,
           bootGraceMs: parseInt($("boot-grace-ms").value, 10) || 60000
@@ -223,6 +235,48 @@
       })
       .catch(function () {});
   });
+
+  // Integrations form submit
+  const integrationsForm = $("integrations-form");
+  if (integrationsForm) {
+    integrationsForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      fetch("/api/config")
+        .then((r) => r.json())
+        .then((cfg) => {
+          const mqttPass = $("mqtt-pass").value;
+          const lokiPass = $("loki-pass").value;
+          const payload = {
+            wifiSsid: cfg.wifiSsid || "",
+            wifiPass: "",
+            mqtt: {
+              host: ($("mqtt-host").value || "").trim(),
+              port: parseInt($("mqtt-port").value, 10) || 1883,
+              user: ($("mqtt-user").value || "").trim(),
+              pass: mqttPass,
+              tls: $("mqtt-tls").checked
+            },
+            loki: {
+              host: ($("loki-host").value || "").trim(),
+              user: ($("loki-user").value || "").trim(),
+              pass: lokiPass
+            },
+            powerPulseMs: cfg.powerPulseMs || 500,
+            resetPulseMs: cfg.resetPulseMs || 500,
+            bootGraceMs: cfg.bootGraceMs || 60000
+          };
+          return fetch("/api/config", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+        })
+        .then(function () {
+          addLog("Integrations saved - rebooting...");
+        })
+        .catch(function () {});
+    });
+  }
 
   // Factory reset button
   const factoryResetBtn = $("factory-reset-btn");
@@ -258,6 +312,28 @@
         });
     });
   }
+
+  // Tabs: Status = status+controls, Settings = timing+device
+  (function () {
+    const tabBtns = document.querySelectorAll(".tab-btn[data-tab]");
+    const panels = document.querySelectorAll("[data-tab-panel]");
+    const tabToPanels = { status: ["status", "controls"], integrations: ["integrations"], log: ["log"], settings: ["timing", "settings"] };
+    function showTab(tabId) {
+      const show = tabToPanels[tabId] || [];
+      tabBtns.forEach(function (btn) {
+        btn.classList.toggle("tab-active", btn.getAttribute("data-tab") === tabId);
+      });
+      panels.forEach(function (panel) {
+        const id = panel.getAttribute("data-tab-panel");
+        panel.classList.toggle("hidden", show.indexOf(id) === -1);
+      });
+    }
+    tabBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        showTab(btn.getAttribute("data-tab"));
+      });
+    });
+  })();
 
   // Initialize
   initConfig();
