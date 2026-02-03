@@ -50,6 +50,168 @@ bool Networking_saveConfig(const StoredConfig &cfg);
 bool Networking_clearConfig();
 
 // =============================================================================
+// SECURITY: CSRF PROTECTION
+// =============================================================================
+
+// CSRF token expires after 1 hour
+constexpr uint32_t CSRF_TOKEN_VALIDITY_MS = 3600000;
+
+static String g_csrfToken;
+static uint32_t g_csrfTokenCreatedMs = 0;
+
+static String generateCsrfToken() {
+  /**
+   * Generate a new CSRF token.
+   * Uses device ID + timestamp + random for uniqueness.
+   */
+  uint32_t rnd = esp_random();
+  uint32_t time = millis();
+  
+  // Simple hash combining device ID, time, and random
+  uint32_t hash = 0x1F3E5D7C;
+  for (size_t i = 0; i < g_state.deviceId.length(); i++) {
+    hash = ((hash << 5) + hash) ^ g_state.deviceId[i];
+  }
+  hash ^= time;
+  hash ^= rnd;
+  hash = ((hash << 13) | (hash >> 19)) ^ (rnd >> 7);
+  
+  // Convert to hex string
+  char token[17];
+  snprintf(token, sizeof(token), "%08X%08X", hash, rnd);
+  return String(token);
+}
+
+static String getCsrfToken() {
+  /**
+   * Get current CSRF token, generating a new one if expired or missing.
+   */
+  uint32_t now = millis();
+  
+  // Generate new token if missing or expired
+  if (g_csrfToken.length() == 0 || 
+      (now - g_csrfTokenCreatedMs) > CSRF_TOKEN_VALIDITY_MS) {
+    g_csrfToken = generateCsrfToken();
+    g_csrfTokenCreatedMs = now;
+    Serial.println("CSRF: Generated new token");
+  }
+  
+  return g_csrfToken;
+}
+
+static bool validateCsrfToken(AsyncWebServerRequest *request) {
+  /**
+   * Validate CSRF token from request header or body.
+   * 
+   * Token can be provided via:
+   *   - X-CSRF-Token header
+   *   - csrf_token query parameter
+   * 
+   * @return true if token is valid
+   */
+  // AP mode doesn't require CSRF (initial setup)
+  if (g_state.apMode) {
+    return true;
+  }
+  
+  // Check header first
+  if (request->hasHeader("X-CSRF-Token")) {
+    String token = request->header("X-CSRF-Token");
+    if (token == g_csrfToken) {
+      return true;
+    }
+  }
+  
+  // Check query parameter
+  if (request->hasParam("csrf_token")) {
+    String token = request->getParam("csrf_token")->value();
+    if (token == g_csrfToken) {
+      return true;
+    }
+  }
+  
+  Serial.println("CSRF: Token validation failed");
+  request->send(403, "application/json", "{\"error\":\"CSRF token invalid or missing\"}");
+  return false;
+}
+
+// =============================================================================
+// SECURITY: AUTHENTICATION & RATE LIMITING
+// =============================================================================
+
+// Rate limiting constants
+constexpr uint8_t MAX_AUTH_FAILURES = 5;       // Max failed attempts before lockout
+constexpr uint32_t AUTH_LOCKOUT_MS = 300000;   // 5 minute lockout
+constexpr uint32_t AUTH_FAILURE_DECAY_MS = 60000; // Failures decay after 1 minute
+
+static uint32_t g_lastAuthFailMs = 0;
+
+static bool isRateLimited() {
+  /**
+   * Check if authentication is currently rate-limited.
+   * Returns true if too many failed attempts recently.
+   */
+  if (g_state.authBlockedUntilMs > 0 && millis() < g_state.authBlockedUntilMs) {
+    return true;
+  }
+  // Reset block if time has passed
+  if (g_state.authBlockedUntilMs > 0 && millis() >= g_state.authBlockedUntilMs) {
+    g_state.authBlockedUntilMs = 0;
+    g_state.authFailCount = 0;
+  }
+  return false;
+}
+
+static void recordAuthFailure() {
+  /**
+   * Record a failed authentication attempt.
+   * Triggers lockout after MAX_AUTH_FAILURES.
+   */
+  // Decay old failures
+  if (millis() - g_lastAuthFailMs > AUTH_FAILURE_DECAY_MS) {
+    g_state.authFailCount = 0;
+  }
+  
+  g_lastAuthFailMs = millis();
+  g_state.authFailCount++;
+  
+  if (g_state.authFailCount >= MAX_AUTH_FAILURES) {
+    g_state.authBlockedUntilMs = millis() + AUTH_LOCKOUT_MS;
+    Serial.printf("AUTH: Too many failures, locked out for %d seconds\n", AUTH_LOCKOUT_MS / 1000);
+  }
+}
+
+static bool checkAuth(AsyncWebServerRequest *request) {
+  /**
+   * Verify HTTP Basic Auth credentials.
+   * In AP mode (setup), authentication is not required.
+   * 
+   * @return true if authenticated or in AP mode
+   */
+  // AP mode doesn't require auth (user already knows AP password)
+  if (g_state.apMode) {
+    return true;
+  }
+  
+  // Check rate limiting
+  if (isRateLimited()) {
+    request->send(429, "application/json", "{\"error\":\"Too many attempts. Try again later.\"}");
+    return false;
+  }
+  
+  // Check for Authorization header
+  if (!request->authenticate("admin", g_config.adminPassword.c_str())) {
+    recordAuthFailure();
+    request->requestAuthentication("Restarter");
+    return false;
+  }
+  
+  // Success - reset failure count
+  g_state.authFailCount = 0;
+  return true;
+}
+
+// =============================================================================
 // HELPER FUNCTIONS
 // =============================================================================
 
@@ -109,6 +271,7 @@ static String buildStatusJson() {
   // WiFi details (different in AP vs STA mode)
   if (g_state.apMode) {
     doc["ssid"] = String(Config::AP_SSID_PREFIX) + g_state.deviceId.substring(6);
+    doc["apPassword"] = g_state.apPassword;
     doc["ip"] = WiFi.softAPIP().toString();
     doc["rssi"] = 0;
   } else if (g_state.wifiConnected) {
@@ -119,6 +282,11 @@ static String buildStatusJson() {
     doc["ssid"] = g_config.wifiSsid;
     doc["ip"] = "";
     doc["rssi"] = 0;
+  }
+  
+  // CSRF token for API requests (only in STA mode)
+  if (!g_state.apMode) {
+    doc["csrfToken"] = getCsrfToken();
   }
   
   String out;
@@ -228,11 +396,13 @@ void WebInterface_setup() {
   });
 
   // -------------------------------------------------------------------------
-  // API: GET /api/config
+  // API: GET /api/config (PROTECTED)
   // -------------------------------------------------------------------------
   // Returns current configuration (passwords are hidden)
   g_server.on("/api/config", HTTP_GET, [](AsyncWebServerRequest *request) {
-    StaticJsonDocument<384> doc;
+    if (!checkAuth(request)) return;
+    
+    StaticJsonDocument<512> doc;
     
     // WiFi (password hidden)
     doc["wifiSsid"] = g_config.wifiSsid;
@@ -243,11 +413,15 @@ void WebInterface_setup() {
     doc["mqttPort"] = g_config.mqttPort;
     doc["mqttUser"] = g_config.mqttUser;
     doc["hasMqttPass"] = g_config.mqttPass.length() > 0;
+    doc["mqttTls"] = g_config.mqttTls;
     
     // Timing settings
     doc["powerPulseMs"] = g_config.powerPulseMs;
     doc["resetPulseMs"] = g_config.resetPulseMs;
     doc["bootGraceMs"] = g_config.bootGraceMs;
+    
+    // Security (show if using default or custom password)
+    doc["hasCustomAdminPass"] = g_config.adminPassword != g_state.defaultAdminPassword;
     
     String out;
     serializeJson(doc, out);
@@ -255,12 +429,30 @@ void WebInterface_setup() {
   });
 
   // -------------------------------------------------------------------------
-  // API: POST /api/config
+  // API: POST /api/config (PROTECTED + CSRF in STA mode)
   // -------------------------------------------------------------------------
   // Save new configuration and restart
   auto *jsonHandler = new AsyncCallbackJsonWebHandler(
       "/api/config", [](AsyncWebServerRequest *request, JsonVariant &json) {
+        // Auth check (not required in AP mode for initial setup)
+        if (!checkAuth(request)) return;
+        
         JsonObject obj = json.as<JsonObject>();
+        
+        // CSRF validation (check header or JSON body)
+        if (!g_state.apMode) {
+          String csrfFromBody = obj["csrfToken"] | "";
+          bool headerValid = request->hasHeader("X-CSRF-Token") && 
+                            request->header("X-CSRF-Token") == g_csrfToken;
+          bool bodyValid = csrfFromBody == g_csrfToken;
+          
+          if (!headerValid && !bodyValid) {
+            Serial.println("CSRF: Token validation failed (config)");
+            request->send(403, "application/json", "{\"error\":\"CSRF token invalid\"}");
+            return;
+          }
+        }
+        
         StoredConfig cfg;
         
         // WiFi settings (SSID required)
@@ -280,11 +472,16 @@ void WebInterface_setup() {
         cfg.mqttUser = obj["mqttUser"] | "";
         String newMqttPass = obj["mqttPass"] | "";
         cfg.mqttPass = newMqttPass.length() > 0 ? newMqttPass : g_config.mqttPass;
+        cfg.mqttTls = obj["mqttTls"] | false;
         
         // Timing settings
         cfg.powerPulseMs = obj["powerPulseMs"] | 500;
         cfg.resetPulseMs = obj["resetPulseMs"] | 500;
         cfg.bootGraceMs = obj["bootGraceMs"] | 60000;
+        
+        // Admin password: preserve existing if not provided
+        String newAdminPass = obj["adminPassword"] | "";
+        cfg.adminPassword = newAdminPass.length() > 0 ? newAdminPass : g_config.adminPassword;
 
         // Save to NVS
         if (!Networking_saveConfig(cfg)) {
@@ -300,30 +497,36 @@ void WebInterface_setup() {
   g_server.addHandler(jsonHandler);
 
   // -------------------------------------------------------------------------
-  // API: POST /api/action/power
+  // API: POST /api/action/power (PROTECTED + CSRF)
   // -------------------------------------------------------------------------
   // Trigger a power button press
   g_server.on("/api/action/power", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (!checkAuth(request)) return;
+    if (!validateCsrfToken(request)) return;
     g_pc.pulsePower();
     WebInterface_logAction("Power pulse requested (API)");
     request->send(200, "application/json", "{\"ok\":true}");
   });
 
   // -------------------------------------------------------------------------
-  // API: POST /api/action/reset
+  // API: POST /api/action/reset (PROTECTED + CSRF)
   // -------------------------------------------------------------------------
   // Trigger a reset button press
   g_server.on("/api/action/reset", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (!checkAuth(request)) return;
+    if (!validateCsrfToken(request)) return;
     g_pc.pulseReset();
     WebInterface_logAction("Reset pulse requested (API)");
     request->send(200, "application/json", "{\"ok\":true}");
   });
 
   // -------------------------------------------------------------------------
-  // API: POST /api/action/force-power
+  // API: POST /api/action/force-power (PROTECTED + CSRF)
   // -------------------------------------------------------------------------
   // Force shutdown (hold power for 11 seconds)
   g_server.on("/api/action/force-power", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (!checkAuth(request)) return;
+    if (!validateCsrfToken(request)) return;
     g_pc.forcePower();
     WebInterface_logAction("Force shutdown requested (11s hold)");
     request->send(200, "application/json", "{\"ok\":true}");
@@ -367,10 +570,12 @@ void WebInterface_setup() {
   });
 
   // -------------------------------------------------------------------------
-  // API: POST /api/factory-reset
+  // API: POST /api/factory-reset (PROTECTED + CSRF)
   // -------------------------------------------------------------------------
   // Clear all configuration and restart in AP mode
   g_server.on("/api/factory-reset", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (!checkAuth(request)) return;
+    if (!validateCsrfToken(request)) return;
     WebInterface_logAction("Factory reset initiated");
     Networking_clearConfig();
     g_restartPending = true;

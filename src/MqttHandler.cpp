@@ -28,6 +28,8 @@
  */
 
 #include <Arduino.h>
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 
@@ -36,6 +38,8 @@
 #include "PCController.h"
 
 // Global objects from main.cpp
+extern WiFiClient g_wifiClient;
+extern WiFiClientSecure g_wifiClientTls;
 extern PubSubClient g_mqttClient;
 extern StoredConfig g_config;
 extern RuntimeState g_state;
@@ -200,12 +204,19 @@ static bool connectMqtt() {
     return false;
   }
   
+  // Use appropriate default port based on TLS setting
+  uint16_t port = g_config.mqttPort;
+  if (port == 1883 && g_config.mqttTls) {
+    port = 8883;  // Standard MQTTS port
+  }
+  
   Serial.print("Connecting to MQTT broker: ");
+  Serial.print(g_config.mqttTls ? "mqtts://" : "mqtt://");
   Serial.print(g_config.mqttHost);
   Serial.print(":");
-  Serial.println(g_config.mqttPort);
+  Serial.println(port);
   
-  g_mqttClient.setServer(g_config.mqttHost.c_str(), g_config.mqttPort);
+  g_mqttClient.setServer(g_config.mqttHost.c_str(), port);
   String clientId = String("restarter-") + g_state.deviceId;
 
   bool ok = false;
@@ -260,9 +271,21 @@ void MqttHandler_setup() {
   /**
    * Initialize MQTT handler.
    * Called once during setup().
+   * 
+   * Configures TLS or plain connection based on config.
    */
+  if (g_config.mqttTls) {
+    // Use secure client for MQTTS
+    g_wifiClientTls.setInsecure();  // Accept any certificate (for self-signed)
+    g_mqttClient.setClient(g_wifiClientTls);
+    Serial.println("MQTT handler initialized (TLS enabled)");
+  } else {
+    // Use standard client for plain MQTT
+    g_mqttClient.setClient(g_wifiClient);
+    Serial.println("MQTT handler initialized (no TLS)");
+  }
+  
   g_mqttClient.setCallback(mqttCallback);
-  Serial.println("MQTT handler initialized");
 }
 
 // =============================================================================

@@ -45,6 +45,67 @@ static DNSServer g_dnsServer;  // DNS server for captive portal (redirects all d
 static Preferences g_prefs;     // ESP32 NVS (Non-Volatile Storage) for config
 
 // =============================================================================
+// PASSWORD OBFUSCATION
+// =============================================================================
+// Simple XOR obfuscation for stored passwords.
+// NOTE: This is NOT encryption - it's obfuscation to prevent casual reading.
+// For production security, enable ESP32 flash encryption in platformio.ini.
+
+static String obfuscatePassword(const String &password, uint64_t key) {
+  /**
+   * XOR obfuscate a password string with device-unique key.
+   * Same function is used for both obfuscation and de-obfuscation.
+   */
+  if (password.length() == 0) return "";
+  
+  String result;
+  result.reserve(password.length() * 2);
+  
+  for (size_t i = 0; i < password.length(); i++) {
+    uint8_t keyByte = (key >> ((i % 8) * 8)) & 0xFF;
+    uint8_t obfuscated = password[i] ^ keyByte ^ (i * 7);  // Extra mixing
+    
+    // Convert to hex for safe storage
+    char hex[3];
+    snprintf(hex, sizeof(hex), "%02X", obfuscated);
+    result += hex;
+  }
+  return result;
+}
+
+static String deobfuscatePassword(const String &obfuscated, uint64_t key) {
+  /**
+   * Reverse XOR obfuscation to get original password.
+   */
+  if (obfuscated.length() == 0 || obfuscated.length() % 2 != 0) return "";
+  
+  String result;
+  result.reserve(obfuscated.length() / 2);
+  
+  for (size_t i = 0; i < obfuscated.length(); i += 2) {
+    // Parse hex pair
+    char hexPair[3] = { obfuscated[i], obfuscated[i + 1], '\0' };
+    uint8_t obfuscatedByte = strtol(hexPair, nullptr, 16);
+    
+    size_t idx = i / 2;
+    uint8_t keyByte = (key >> ((idx % 8) * 8)) & 0xFF;
+    char original = obfuscatedByte ^ keyByte ^ (idx * 7);
+    
+    result += original;
+  }
+  return result;
+}
+
+static uint64_t getObfuscationKey() {
+  /**
+   * Get device-unique key for password obfuscation.
+   * Uses ESP32's unique ID mixed with a salt.
+   */
+  uint64_t mac = ESP.getEfuseMac();
+  return mac ^ 0xA5C3E7F1B9D2468AULL;  // XOR with salt
+}
+
+// =============================================================================
 // DEVICE IDENTITY
 // =============================================================================
 
@@ -63,6 +124,35 @@ static String formatDeviceId(uint64_t mac) {
   return String(buf);
 }
 
+static String generateUniquePassword(uint64_t mac, uint32_t salt) {
+  /**
+   * Generate a unique password from chip ID and salt.
+   * Uses a simple hash to create an 8-char alphanumeric password.
+   * This is EU Cyber Resilience Act compliant (unique per device).
+   * 
+   * @param mac   ESP32 MAC address
+   * @param salt  Additional salt to create different passwords for AP vs Admin
+   */
+  // Mix the MAC bytes with salt to create something not directly derivable
+  uint32_t hash = salt;
+  for (int i = 0; i < 6; i++) {
+    uint8_t b = (mac >> (i * 8)) & 0xFF;
+    hash = ((hash << 5) + hash) ^ b;  // djb2-like hash
+  }
+  hash ^= (hash >> 16);
+  
+  // Convert to alphanumeric (0-9, A-Z, excluding confusing chars)
+  const char* chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";  // No 0,1,I,O
+  char pwd[9];
+  for (int i = 0; i < 8; i++) {
+    pwd[i] = chars[hash % 32];
+    hash /= 32;
+    hash ^= (mac >> (i * 5));  // Keep mixing
+  }
+  pwd[8] = '\0';
+  return String(pwd);
+}
+
 static void loadIdentity() {
   /**
    * Generate device identity from the ESP32's MAC address.
@@ -70,12 +160,14 @@ static void loadIdentity() {
    * This creates:
    *   - deviceId: Full hex MAC (e.g., "a1b2c3d4e5f6")
    *   - hostname: "restarter-a1b2c3d4e5f6"
-   * 
-   * No passwords or secrets are used - just the hardware ID.
+   *   - apPassword: Unique 8-char WiFi AP password (EU CRA compliant)
+   *   - defaultAdminPassword: Unique 8-char admin password for web UI
    */
   uint64_t mac = ESP.getEfuseMac();
   g_state.deviceId = formatDeviceId(mac);
   g_state.hostname = String(Config::HOSTNAME_PREFIX) + g_state.deviceId;
+  g_state.apPassword = generateUniquePassword(mac, 0x5A3C9E7B);        // Salt for AP
+  g_state.defaultAdminPassword = generateUniquePassword(mac, 0x7B9E3C5A); // Different salt for admin
   
   Serial.print("Device ID: ");
   Serial.println(g_state.deviceId);
@@ -109,20 +201,37 @@ bool Networking_loadConfig() {
   
   g_prefs.begin("restarter", true);  // Open namespace in read-only mode
   
+  uint64_t key = getObfuscationKey();
+  
   // WiFi settings
   g_config.wifiSsid = g_prefs.getString("wifiSsid", "");
-  g_config.wifiPass = g_prefs.getString("wifiPass", "");
+  String storedWifiPass = g_prefs.getString("wifiPassObf", "");
+  g_config.wifiPass = deobfuscatePassword(storedWifiPass, key);
   
   // MQTT settings
   g_config.mqttHost = g_prefs.getString("mqttHost", "");
   g_config.mqttPort = g_prefs.getUShort("mqttPort", 1883);
   g_config.mqttUser = g_prefs.getString("mqttUser", "");
-  g_config.mqttPass = g_prefs.getString("mqttPass", "");
+  String storedMqttPass = g_prefs.getString("mqttPassObf", "");
+  g_config.mqttPass = deobfuscatePassword(storedMqttPass, key);
+  g_config.mqttTls = g_prefs.getBool("mqttTls", false);
   
   // Timing settings
   g_config.powerPulseMs = g_prefs.getULong("powerPulseMs", 500);
   g_config.resetPulseMs = g_prefs.getULong("resetPulseMs", 500);
   g_config.bootGraceMs = g_prefs.getULong("bootGraceMs", 60000);
+  
+  // Security settings (admin password is also obfuscated)
+  String storedAdminPass = g_prefs.getString("adminPassObf", "");
+  g_config.adminPassword = deobfuscatePassword(storedAdminPass, key);
+  
+  // If no admin password set, use the device-unique default
+  if (g_config.adminPassword.length() == 0) {
+    g_config.adminPassword = g_state.defaultAdminPassword;
+    Serial.println("Using default admin password (unique to this device)");
+    Serial.print("Admin Password: ");
+    Serial.println(g_config.adminPassword);
+  }
   
   g_prefs.end();
   
@@ -141,6 +250,8 @@ bool Networking_saveConfig(const StoredConfig &cfg) {
    * Save configuration to NVS.
    * Called when user submits the setup form.
    * 
+   * Passwords are obfuscated before storage to prevent casual reading.
+   * 
    * @param cfg  The new configuration to save
    * @return true on success
    */
@@ -148,20 +259,26 @@ bool Networking_saveConfig(const StoredConfig &cfg) {
   
   g_prefs.begin("restarter", false);  // Open namespace in read-write mode
   
-  // WiFi settings
-  g_prefs.putString("wifiSsid", cfg.wifiSsid);
-  g_prefs.putString("wifiPass", cfg.wifiPass);
+  uint64_t key = getObfuscationKey();
   
-  // MQTT settings
+  // WiFi settings (password obfuscated)
+  g_prefs.putString("wifiSsid", cfg.wifiSsid);
+  g_prefs.putString("wifiPassObf", obfuscatePassword(cfg.wifiPass, key));
+  
+  // MQTT settings (password obfuscated)
   g_prefs.putString("mqttHost", cfg.mqttHost);
   g_prefs.putUShort("mqttPort", cfg.mqttPort);
   g_prefs.putString("mqttUser", cfg.mqttUser);
-  g_prefs.putString("mqttPass", cfg.mqttPass);
+  g_prefs.putString("mqttPassObf", obfuscatePassword(cfg.mqttPass, key));
+  g_prefs.putBool("mqttTls", cfg.mqttTls);
   
   // Timing settings
   g_prefs.putULong("powerPulseMs", cfg.powerPulseMs);
   g_prefs.putULong("resetPulseMs", cfg.resetPulseMs);
   g_prefs.putULong("bootGraceMs", cfg.bootGraceMs);
+  
+  // Security settings (admin password obfuscated)
+  g_prefs.putString("adminPassObf", obfuscatePassword(cfg.adminPassword, key));
   
   g_prefs.end();
   
@@ -251,7 +368,7 @@ static void startAp() {
   
   // Create AP SSID using last 6 characters of device ID
   String ssid = String(Config::AP_SSID_PREFIX) + g_state.deviceId.substring(6);
-  WiFi.softAP(ssid.c_str());
+  WiFi.softAP(ssid.c_str(), g_state.apPassword.c_str());
   
   // Start DNS server for captive portal (redirect all domains to 192.168.4.1)
   g_dnsServer.start(53, "*", WiFi.softAPIP());
@@ -262,6 +379,8 @@ static void startAp() {
   Serial.println("=== ACCESS POINT MODE ===");
   Serial.print("SSID: ");
   Serial.println(ssid);
+  Serial.print("Password: ");
+  Serial.println(g_state.apPassword);
   Serial.print("IP: ");
   Serial.println(WiFi.softAPIP());
   Serial.println("Connect to this network to configure the device");

@@ -17,15 +17,19 @@ struct StoredConfig {
   uint16_t mqttPort = 1883;
   String mqttUser;
   String mqttPass;
+  bool mqttTls = false;           // Use MQTTS (TLS) connection
   uint32_t powerPulseMs = 500;
   uint32_t resetPulseMs = 500;
   uint32_t bootGraceMs = 60000;
+  String adminPassword;           // Web interface password (unique per device)
 };
 
 // Current runtime status (not persistent)
 struct RuntimeState {
   String hostname;
   String deviceId;
+  String apPassword;              // Unique per-device AP password (EU CRA compliant)
+  String defaultAdminPassword;    // Generated default admin password (shown on first boot)
   bool apMode = false;
   bool wifiConnected = false;
   PCState pcState = PCState::OFF;
@@ -36,6 +40,8 @@ struct RuntimeState {
   uint32_t freeHeap = 0;
   uint32_t totalHeap = 0;
   uint8_t cpuLoad = 0;
+  uint8_t authFailCount = 0;      // Rate limiting: failed auth attempts
+  uint32_t authBlockedUntilMs = 0; // Rate limiting: blocked until this time
 };
 
 // Global instances (defined in main.cpp)

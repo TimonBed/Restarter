@@ -133,22 +133,27 @@ Die CE-Kennzeichnung ist für den Verkauf elektronischer Geräte in der EU verpf
 
 | Punkt                        | Priorität | Status                                       |
 | ------------------------------ | ------------ | ---------------------------------------------- |
-| **HTTPS-Unterstützung**     | Hoch       | ⬜ TLS für Web-Interface                    |
-| **WSS (Sicherer WebSocket)** | Hoch       | ⬜ TLS für WebSocket                        |
-| **MQTT TLS**                 | Hoch       | ⬜ MQTTS implementieren                      |
-| **Passwort-Hashing**         | Hoch       | ⬜ WLAN-Passwort nicht im Klartext speichern |
-| **API-Authentifizierung**    | Hoch       | ⬜ Token-basierte Auth für API hinzufügen  |
-| **Rate Limiting**            | Mittel     | ⬜ Brute-Force-Angriffe verhindern           |
-| **CSRF-Schutz**              | Mittel     | ⬜ CSRF-Tokens zu Formularen hinzufügen     |
+| **HTTPS-Unterstützung**     | Hoch       | 🔶 Erfordert Bibliothekswechsel (ESPAsyncWebServer hat kein TLS) |
+| **WSS (Sicherer WebSocket)** | Hoch       | 🔶 Erfordert Bibliothekswechsel (kein natives TLS) |
+| **MQTT TLS**                 | Hoch       | ✅ MQTTS mit WiFiClientSecure implementiert   |
+| **HTTP Basic Auth**          | Hoch       | ✅ Passwortschutz für alle sensitiven Endpunkte |
+| **Passwort-Obfuskation**     | Hoch       | ✅ Passwörter XOR-obfuskiert in NVS gespeichert |
+| **API-Authentifizierung**    | Hoch       | ✅ HTTP Basic Auth für alle API-Endpunkte    |
+| **Rate Limiting**            | Hoch       | ✅ 5 Versuche, dann 5 Min Sperre             |
+| **CSRF-Schutz**              | Hoch       | ✅ CSRF-Token für alle POST-Anfragen        |
+
+> **Hinweis HTTPS/WSS:** ESPAsyncWebServer unterstützt kein TLS. Optionen: (1) Wechsel zu esp_https_server (ESP-IDF), (2) Reverse Proxy, (3) VPN für Remote-Zugriff. Für lokales Netzwerk ist HTTP Basic Auth ausreichend.
+
+> **Hinweis Passwort-Sicherheit:** Für Produktionseinsatz sollte ESP32 Flash-Verschlüsselung in platformio.ini aktiviert werden (`board_build.flash_mode = qio`, `board_build.partitions = ...encrypted`).
 
 ### Zugriffskontrolle
 
 
 | Punkt                    | Priorität | Status                                          |
 | -------------------------- | ------------ | ------------------------------------------------- |
-| **Admin-Passwort**       | Hoch       | ⬜ Passwort für sensible Aktionen erforderlich |
-| **Sitzungsverwaltung**   | Hoch       | ⬜ Ordentliche Sitzungen implementieren         |
-| **AP-Modus-Passwort**    | Mittel     | ⬜ Setup-AP absichern                           |
+| **Admin-Passwort**       | Hoch       | ✅ Einzigartiges Passwort pro Gerät (EU CRA-konform) |
+| **Sitzungsverwaltung**   | Mittel     | ⬜ Ordentliche Sitzungen implementieren         |
+| **AP-Modus-Passwort**    | Hoch       | ✅ Einzigartiges Passwort pro Gerät umgesetzt   |
 | **Physische Sicherheit** | Mittel     | ⬜ JTAG in Produktion deaktivieren              |
 
 ### Datenschutz (DSGVO)

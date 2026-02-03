@@ -13,6 +13,7 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <PubSubClient.h>
@@ -32,8 +33,9 @@ RuntimeState g_state;
 
 AsyncWebServer g_server(80);
 AsyncWebSocket g_ws("/ws");
-WiFiClient g_wifiClient;
-PubSubClient g_mqttClient(g_wifiClient);
+WiFiClient g_wifiClient;           // Standard client for non-TLS MQTT
+WiFiClientSecure g_wifiClientTls;  // Secure client for TLS MQTT
+PubSubClient g_mqttClient;         // Will be configured with appropriate client
 PCController g_pc;
 TempSensor g_tempSensor;
 
