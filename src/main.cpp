@@ -24,6 +24,9 @@
 #include "PCController.h"
 #include "TempSensor.h"
 #include "FactoryReset.h"
+#include "integrations/MqttHandler.h"
+#include "integrations/MetricsHandler.h"
+#include "integrations/LokiHandler.h"
 
 // =============================================================================
 // WATCHDOG & STABILITY CONFIGURATION
@@ -60,13 +63,6 @@ void Networking_loop();
 void WebInterface_setup();
 void WebInterface_loop();
 void WebInterface_broadcastStatus();
-void MqttHandler_setup();
-void MqttHandler_loop();
-void MqttHandler_publishState();
-void MetricsHandler_setup();
-void MetricsHandler_loop();
-void LokiHandler_setup();
-void LokiHandler_loop();
 
 // =============================================================================
 // WATCHDOG & HEAP MONITORING

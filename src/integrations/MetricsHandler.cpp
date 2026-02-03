@@ -19,6 +19,7 @@
 
 #include "Config.h"
 #include "Constants.h"
+#include "integrations/MetricsHandler.h"
 
 // Global objects from main.cpp
 extern AsyncWebServer g_server;

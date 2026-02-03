@@ -36,6 +36,7 @@
 #include "Config.h"
 #include "Constants.h"
 #include "PCController.h"
+#include "integrations/MqttHandler.h"
 
 // Global objects from main.cpp
 extern WiFiClient g_wifiClient;

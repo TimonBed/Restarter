@@ -23,6 +23,7 @@
 
 #include "Config.h"
 #include "Constants.h"
+#include "integrations/LokiHandler.h"
 
 // Global objects
 extern StoredConfig g_config;

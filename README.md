@@ -178,16 +178,21 @@ Restarter/
 │   ├── TempSensor.cpp      # TMP112 temperature sensor
 │   ├── Networking.cpp      # WiFi, NVS config storage
 │   ├── WebInterface.cpp    # Web server, REST API, auth, CSRF
-│   ├── MqttHandler.cpp     # MQTT + Home Assistant discovery
-│   ├── MetricsHandler.cpp  # Prometheus /metrics endpoint
-│   ├── LokiHandler.cpp     # Grafana Loki log shipping
-│   └── FactoryReset.cpp    # Hardware reset button handler
+│   ├── FactoryReset.cpp    # Hardware reset button handler
+│   └── integrations/       # External service integrations
+│       ├── MqttHandler.cpp     # MQTT + Home Assistant discovery
+│       ├── MetricsHandler.cpp  # Prometheus /metrics endpoint
+│       └── LokiHandler.cpp     # Grafana Loki log shipping
 │
 ├── include/
 │   ├── Config.h            # Hardware pins, timing defaults
 │   ├── Constants.h         # Data structures (StoredConfig, RuntimeState)
 │   ├── PCController.h      # PC controller class
-│   └── TempSensor.h        # Temperature sensor class
+│   ├── TempSensor.h        # Temperature sensor class
+│   └── integrations/       # Integration headers
+│       ├── MqttHandler.h
+│       ├── MetricsHandler.h
+│       └── LokiHandler.h
 │
 ├── data/                   # Web UI (LittleFS)
 │   ├── index.html          # Dashboard
@@ -221,8 +226,12 @@ pio run -t erase           # Full flash erase
 ### Adding Features
 
 1. **New API endpoint**: Add to `WebInterface.cpp`
-2. **New config setting**: Add to `StoredConfig` in `Constants.h`, update `Networking.cpp`
-3. **New integration**: Create `XxxHandler.cpp`, add to `main.cpp` setup/loop
+2. **New config setting**: Add to `StoredConfig` in `Config.h`, update `Networking.cpp`
+3. **New integration**:
+   - Create `include/integrations/XxxHandler.h` with function declarations
+   - Create `src/integrations/XxxHandler.cpp` with implementation
+   - Add `#include "integrations/XxxHandler.h"` to `main.cpp`
+   - Call `XxxHandler_setup()` in `setup()` and `XxxHandler_loop()` in `loop()`
 
 ---
 
