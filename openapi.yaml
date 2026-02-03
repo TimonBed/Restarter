@@ -1,19 +1,59 @@
 openapi: 3.0.3
 info:
   title: Restarter API
-  version: "0.2.0"
-  description: REST API for the ESP32-C3 PC Restarter with onboarding support.
+  version: "0.3.0"
+  description: |
+    REST API for the ESP32-C3 PC Restarter.
+    
+    ## Authentication
+    
+    Protected endpoints require HTTP Basic Auth:
+    - Username: `admin`
+    - Password: Device-unique (shown on first boot)
+    
+    ## CSRF Protection
+    
+    All POST requests (except in AP mode) require a CSRF token:
+    - Get token from `GET /api/status` response (`csrfToken` field)
+    - Send via `X-CSRF-Token` header or `csrfToken` in JSON body
+    
+    ## Integrations
+    
+    | Integration | Endpoint | Description |
+    |-------------|----------|-------------|
+    | REST API | `/api/*` | This specification |
+    | WebSocket | `/ws` | Real-time status updates |
+    | Prometheus | `/metrics` | Metrics scraping |
+    | MQTT | External | Home Assistant auto-discovery |
+    | Loki | External | Log shipping |
+
 servers:
   - url: http://{device_host}
-    description: ESP32 device on your LAN or AP mode
+    description: ESP32 device on LAN or AP mode (192.168.4.1)
     variables:
       device_host:
-        default: 192.168.4.1
+        default: restarter-abc123.local
+
+tags:
+  - name: Status
+    description: Device status and health
+  - name: Configuration
+    description: Device settings
+  - name: Actions
+    description: PC control actions
+  - name: Network
+    description: WiFi management
+  - name: Monitoring
+    description: Prometheus metrics
+
 paths:
   /api/status:
     get:
+      tags: [Status]
       summary: Get device status
-      description: Returns current device state, WiFi info, and system stats.
+      description: |
+        Returns current device state, WiFi info, system stats, and CSRF token.
+        No authentication required.
       responses:
         "200":
           description: Status payload
@@ -21,10 +61,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Status"
+
   /api/config:
     get:
-      summary: Get config (no passwords)
-      description: Returns current configuration without sensitive data.
+      tags: [Configuration]
+      summary: Get configuration
+      description: Returns current configuration. Passwords are hidden.
+      security:
+        - basicAuth: []
       responses:
         "200":
           description: Current config
@@ -32,9 +76,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Config"
+        "401":
+          description: Authentication required
     post:
-      summary: Save config and reboot
-      description: Saves WiFi, MQTT, and timing configuration. Device reboots after save.
+      tags: [Configuration]
+      summary: Save configuration
+      description: |
+        Saves configuration and restarts device.
+        Requires authentication and CSRF token (in STA mode).
+      security:
+        - basicAuth: []
       requestBody:
         required: true
         content:
@@ -43,63 +94,97 @@ paths:
               $ref: "#/components/schemas/ConfigUpdate"
       responses:
         "200":
-          description: Saved successfully
+          description: Saved successfully, device restarting
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Ok"
         "400":
-          description: Validation error (wifiSsid required)
+          description: Validation error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "401":
+          description: Authentication required
+        "403":
+          description: CSRF token invalid
         "500":
           description: Save failed
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+
   /api/action/power:
     post:
-      summary: Pulse power relay
+      tags: [Actions]
+      summary: Press power button
       description: Simulates pressing the power button for configured duration.
+      security:
+        - basicAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
       responses:
         "200":
-          description: Accepted
+          description: Action executed
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Ok"
+        "401":
+          description: Authentication required
+        "403":
+          description: CSRF token invalid
+        "429":
+          description: Rate limited
+
   /api/action/reset:
     post:
-      summary: Pulse reset relay
+      tags: [Actions]
+      summary: Press reset button
       description: Simulates pressing the reset button for configured duration.
+      security:
+        - basicAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
       responses:
         "200":
-          description: Accepted
+          description: Action executed
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Ok"
+        "401":
+          description: Authentication required
+        "403":
+          description: CSRF token invalid
+
   /api/action/force-power:
     post:
-      summary: Force power off (11s hold)
-      description: Holds power relay for 11 seconds to force shutdown.
+      tags: [Actions]
+      summary: Force power off
+      description: Holds power button for 11 seconds to force shutdown.
+      security:
+        - basicAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
       responses:
         "200":
-          description: Accepted
+          description: Action executed
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Ok"
+        "401":
+          description: Authentication required
+        "403":
+          description: CSRF token invalid
+
   /api/wifi/scan:
     get:
-      summary: Scan for WiFi networks
+      tags: [Network]
+      summary: Scan WiFi networks
       description: Initiates or returns WiFi network scan results.
       responses:
         "200":
-          description: Scan results
+          description: Scan complete
           content:
             application/json:
               schema:
@@ -110,29 +195,43 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WifiScanInProgress"
+
   /api/factory-reset:
     post:
-      summary: Factory reset device
-      description: Clears all configuration and restarts device in AP mode for fresh setup.
+      tags: [Configuration]
+      summary: Factory reset
+      description: Clears all configuration and restarts in AP mode.
       security:
         - basicAuth: []
       parameters:
-        - name: X-CSRF-Token
-          in: header
-          required: true
-          schema:
-            type: string
+        - $ref: "#/components/parameters/CsrfToken"
       responses:
         "200":
-          description: Reset initiated, device will restart
+          description: Reset initiated
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Ok"
+        "401":
+          description: Authentication required
+        "403":
+          description: CSRF token invalid
+
   /metrics:
     get:
+      tags: [Monitoring]
       summary: Prometheus metrics
-      description: Returns device metrics in Prometheus text exposition format.
+      description: |
+        Returns device metrics in Prometheus text exposition format.
+        
+        Available metrics:
+        - `restarter_info` - Device information
+        - `restarter_pc_state` - PC state (0=OFF, 1=BOOTING, 2=RUNNING, 3=RESTARTING)
+        - `restarter_pc_power` - PC power (0=OFF, 1=ON)
+        - `restarter_temperature_celsius` - Temperature
+        - `restarter_wifi_rssi` - WiFi signal strength (dBm)
+        - `restarter_heap_free_bytes` - Free heap memory
+        - `restarter_uptime_seconds` - Device uptime
       responses:
         "200":
           description: Prometheus metrics
@@ -140,16 +239,27 @@ paths:
             text/plain:
               schema:
                 type: string
-                example: |
-                  # HELP restarter_pc_power PC power state
-                  # TYPE restarter_pc_power gauge
-                  restarter_pc_power{device="abc123"} 1
+              example: |
+                # HELP restarter_pc_power PC power state
+                # TYPE restarter_pc_power gauge
+                restarter_pc_power{device="abc123",hostname="restarter-abc123"} 1
+
 components:
   securitySchemes:
     basicAuth:
       type: http
       scheme: basic
-      description: Username is "admin", password is device-unique
+      description: Username "admin", password is device-unique
+
+  parameters:
+    CsrfToken:
+      name: X-CSRF-Token
+      in: header
+      description: CSRF token from /api/status response
+      required: true
+      schema:
+        type: string
+
   schemas:
     Status:
       type: object
@@ -159,21 +269,20 @@ components:
           example: status
         hostname:
           type: string
-          example: restarter-a1b2c3
+          example: restarter-abc123
         deviceId:
           type: string
           example: a1b2c3d4e5f6
         apMode:
           type: boolean
-          description: True when device is in Access Point mode
+          description: True in Access Point mode
         wifiConnected:
           type: boolean
         hasConfig:
           type: boolean
-          description: True if WiFi SSID is configured
         pcState:
           type: string
-          enum: [OFF, BOOTING, RUNNING, RESTARTING, UNKNOWN]
+          enum: [OFF, BOOTING, RUNNING, RESTARTING]
         powerRelayActive:
           type: boolean
         resetRelayActive:
@@ -181,26 +290,30 @@ components:
         temperature:
           type: number
           format: float
-          description: Temperature in Celsius from TMP112
         hddLastActiveSec:
           type: integer
-          description: Seconds since last HDD activity (-1 = never)
+          description: Seconds since HDD activity (-1 = never)
         ssid:
           type: string
         ip:
           type: string
         rssi:
           type: integer
-          description: WiFi signal strength in dBm
+          description: WiFi signal (dBm)
         freeHeap:
           type: integer
-          description: Free heap memory in bytes
         totalHeap:
           type: integer
-          description: Total heap memory in bytes
         cpuLoad:
           type: integer
-          description: Approximate CPU load percentage
+          description: CPU load percentage
+        csrfToken:
+          type: string
+          description: CSRF token for POST requests (STA mode only)
+        apPassword:
+          type: string
+          description: AP password (AP mode only)
+
     Config:
       type: object
       properties:
@@ -209,24 +322,21 @@ components:
         hasWifiPass:
           type: boolean
         mqtt:
-          $ref: "#/components/schemas/MqttConfig"
+          $ref: "#/components/schemas/IntegrationMqtt"
         loki:
-          $ref: "#/components/schemas/LokiConfig"
+          $ref: "#/components/schemas/IntegrationLoki"
         prometheus:
-          $ref: "#/components/schemas/PrometheusConfig"
+          $ref: "#/components/schemas/IntegrationPrometheus"
         powerPulseMs:
           type: integer
-          description: Power button pulse duration in ms
         resetPulseMs:
           type: integer
-          description: Reset button pulse duration in ms
         bootGraceMs:
           type: integer
-          description: Boot grace period before state detection in ms
         hasCustomAdminPass:
           type: boolean
-          description: True if user changed the default admin password
-    MqttConfig:
+
+    IntegrationMqtt:
       type: object
       properties:
         host:
@@ -243,7 +353,8 @@ components:
           type: boolean
         enabled:
           type: boolean
-    LokiConfig:
+
+    IntegrationLoki:
       type: object
       properties:
         host:
@@ -255,7 +366,8 @@ components:
           type: boolean
         enabled:
           type: boolean
-    PrometheusConfig:
+
+    IntegrationPrometheus:
       type: object
       properties:
         enabled:
@@ -264,6 +376,7 @@ components:
         endpoint:
           type: string
           example: /metrics
+
     ConfigUpdate:
       type: object
       required:
@@ -273,11 +386,11 @@ components:
           type: string
         wifiPass:
           type: string
-          description: Leave empty to preserve existing password
+          description: Empty = keep existing
         mqtt:
-          $ref: "#/components/schemas/MqttConfigUpdate"
+          $ref: "#/components/schemas/IntegrationMqttUpdate"
         loki:
-          $ref: "#/components/schemas/LokiConfigUpdate"
+          $ref: "#/components/schemas/IntegrationLokiUpdate"
         powerPulseMs:
           type: integer
         resetPulseMs:
@@ -286,11 +399,12 @@ components:
           type: integer
         adminPassword:
           type: string
-          description: Leave empty to preserve existing password
+          description: Empty = keep existing
         csrfToken:
           type: string
-          description: Required in STA mode for CSRF protection
-    MqttConfigUpdate:
+          description: Required in STA mode
+
+    IntegrationMqttUpdate:
       type: object
       properties:
         host:
@@ -301,20 +415,21 @@ components:
           type: string
         pass:
           type: string
-          description: Leave empty to preserve existing password
+          description: Empty = keep existing
         tls:
           type: boolean
-    LokiConfigUpdate:
+
+    IntegrationLokiUpdate:
       type: object
       properties:
         host:
           type: string
-          example: http://loki.local:3100
         user:
           type: string
         pass:
           type: string
-          description: Leave empty to preserve existing password
+          description: Empty = keep existing
+
     WifiScanResults:
       type: object
       properties:
@@ -322,12 +437,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/WifiNetwork"
+
     WifiScanInProgress:
       type: object
       properties:
         scanning:
           type: boolean
           example: true
+
     WifiNetwork:
       type: object
       properties:
@@ -335,17 +452,19 @@ components:
           type: string
         rssi:
           type: integer
-          description: Signal strength in dBm
         secure:
           type: boolean
-          description: True if network requires password
+
     Ok:
       type: object
       properties:
         ok:
           type: boolean
+          example: true
+
     Error:
       type: object
       properties:
         error:
           type: string
+          example: wifiSsid required
