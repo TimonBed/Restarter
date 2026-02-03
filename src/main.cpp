@@ -63,6 +63,10 @@ void WebInterface_broadcastStatus();
 void MqttHandler_setup();
 void MqttHandler_loop();
 void MqttHandler_publishState();
+void MetricsHandler_setup();
+void MetricsHandler_loop();
+void LokiHandler_setup();
+void LokiHandler_loop();
 
 // =============================================================================
 // WATCHDOG & HEAP MONITORING
@@ -213,7 +217,11 @@ void setup() {
   // Network & Services
   Networking_setup();
   WebInterface_setup();
+  
+  // Integrations
   MqttHandler_setup();
+  MetricsHandler_setup();
+  LokiHandler_setup();
   
   Serial.printf("Setup complete. Free heap: %u bytes\n", ESP.getFreeHeap());
   Serial.println("=== Running ===\n");
@@ -236,6 +244,8 @@ void loop() {
   Networking_loop();
   WebInterface_loop();
   MqttHandler_loop();
+  MetricsHandler_loop();
+  LokiHandler_loop();
   
   broadcastStatus();
   handleScheduledRestart();

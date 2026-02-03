@@ -114,6 +114,14 @@ paths:
     post:
       summary: Factory reset device
       description: Clears all configuration and restarts device in AP mode for fresh setup.
+      security:
+        - basicAuth: []
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
       responses:
         "200":
           description: Reset initiated, device will restart
@@ -121,7 +129,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Ok"
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      description: Returns device metrics in Prometheus text exposition format.
+      responses:
+        "200":
+          description: Prometheus metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  # HELP restarter_pc_power PC power state
+                  # TYPE restarter_pc_power gauge
+                  restarter_pc_power{device="abc123"} 1
 components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: Username is "admin", password is device-unique
   schemas:
     Status:
       type: object
@@ -178,16 +206,14 @@ components:
       properties:
         wifiSsid:
           type: string
-        mqttHost:
-          type: string
-        mqttPort:
-          type: integer
-        mqttUser:
-          type: string
         hasWifiPass:
           type: boolean
-        hasMqttPass:
-          type: boolean
+        mqtt:
+          $ref: "#/components/schemas/MqttConfig"
+        loki:
+          $ref: "#/components/schemas/LokiConfig"
+        prometheus:
+          $ref: "#/components/schemas/PrometheusConfig"
         powerPulseMs:
           type: integer
           description: Power button pulse duration in ms
@@ -197,6 +223,47 @@ components:
         bootGraceMs:
           type: integer
           description: Boot grace period before state detection in ms
+        hasCustomAdminPass:
+          type: boolean
+          description: True if user changed the default admin password
+    MqttConfig:
+      type: object
+      properties:
+        host:
+          type: string
+          example: mqtt.local
+        port:
+          type: integer
+          example: 1883
+        user:
+          type: string
+        hasPass:
+          type: boolean
+        tls:
+          type: boolean
+        enabled:
+          type: boolean
+    LokiConfig:
+      type: object
+      properties:
+        host:
+          type: string
+          example: http://loki.local:3100
+        user:
+          type: string
+        hasPass:
+          type: boolean
+        enabled:
+          type: boolean
+    PrometheusConfig:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          example: true
+        endpoint:
+          type: string
+          example: /metrics
     ConfigUpdate:
       type: object
       required:
@@ -207,21 +274,47 @@ components:
         wifiPass:
           type: string
           description: Leave empty to preserve existing password
-        mqttHost:
-          type: string
-        mqttPort:
-          type: integer
-        mqttUser:
-          type: string
-        mqttPass:
-          type: string
-          description: Leave empty to preserve existing password
+        mqtt:
+          $ref: "#/components/schemas/MqttConfigUpdate"
+        loki:
+          $ref: "#/components/schemas/LokiConfigUpdate"
         powerPulseMs:
           type: integer
         resetPulseMs:
           type: integer
         bootGraceMs:
           type: integer
+        adminPassword:
+          type: string
+          description: Leave empty to preserve existing password
+        csrfToken:
+          type: string
+          description: Required in STA mode for CSRF protection
+    MqttConfigUpdate:
+      type: object
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+        user:
+          type: string
+        pass:
+          type: string
+          description: Leave empty to preserve existing password
+        tls:
+          type: boolean
+    LokiConfigUpdate:
+      type: object
+      properties:
+        host:
+          type: string
+          example: http://loki.local:3100
+        user:
+          type: string
+        pass:
+          type: string
+          description: Leave empty to preserve existing password
     WifiScanResults:
       type: object
       properties:

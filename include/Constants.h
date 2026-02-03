@@ -11,17 +11,29 @@ enum class PCState : uint8_t {
 
 // Settings stored in NVS/flash
 struct StoredConfig {
+  // WiFi
   String wifiSsid;
   String wifiPass;
+  
+  // MQTT Integration
   String mqttHost;
   uint16_t mqttPort = 1883;
   String mqttUser;
   String mqttPass;
-  bool mqttTls = false;           // Use MQTTS (TLS) connection
+  bool mqttTls = false;
+  
+  // Loki Integration (log aggregation)
+  String lokiHost;                // e.g., "http://loki.local:3100"
+  String lokiUser;                // Optional basic auth
+  String lokiPass;
+  
+  // Timing
   uint32_t powerPulseMs = 500;
   uint32_t resetPulseMs = 500;
   uint32_t bootGraceMs = 60000;
-  String adminPassword;           // Web interface password (unique per device)
+  
+  // Security
+  String adminPassword;
 };
 
 // Current runtime status (not persistent)

@@ -402,18 +402,32 @@ void WebInterface_setup() {
   g_server.on("/api/config", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (!checkAuth(request)) return;
     
-    StaticJsonDocument<512> doc;
+    StaticJsonDocument<768> doc;
     
     // WiFi (password hidden)
     doc["wifiSsid"] = g_config.wifiSsid;
     doc["hasWifiPass"] = g_config.wifiPass.length() > 0;
     
-    // MQTT (password hidden)
-    doc["mqttHost"] = g_config.mqttHost;
-    doc["mqttPort"] = g_config.mqttPort;
-    doc["mqttUser"] = g_config.mqttUser;
-    doc["hasMqttPass"] = g_config.mqttPass.length() > 0;
-    doc["mqttTls"] = g_config.mqttTls;
+    // MQTT Integration (password hidden)
+    JsonObject mqtt = doc.createNestedObject("mqtt");
+    mqtt["host"] = g_config.mqttHost;
+    mqtt["port"] = g_config.mqttPort;
+    mqtt["user"] = g_config.mqttUser;
+    mqtt["hasPass"] = g_config.mqttPass.length() > 0;
+    mqtt["tls"] = g_config.mqttTls;
+    mqtt["enabled"] = g_config.mqttHost.length() > 0;
+    
+    // Loki Integration (password hidden)
+    JsonObject loki = doc.createNestedObject("loki");
+    loki["host"] = g_config.lokiHost;
+    loki["user"] = g_config.lokiUser;
+    loki["hasPass"] = g_config.lokiPass.length() > 0;
+    loki["enabled"] = g_config.lokiHost.length() > 0;
+    
+    // Prometheus (always enabled, no config needed)
+    JsonObject prometheus = doc.createNestedObject("prometheus");
+    prometheus["enabled"] = true;
+    prometheus["endpoint"] = "/metrics";
     
     // Timing settings
     doc["powerPulseMs"] = g_config.powerPulseMs;
@@ -466,13 +480,38 @@ void WebInterface_setup() {
         String newWifiPass = obj["wifiPass"] | "";
         cfg.wifiPass = newWifiPass.length() > 0 ? newWifiPass : g_config.wifiPass;
         
-        // MQTT settings (all optional)
-        cfg.mqttHost = obj["mqttHost"] | "";
-        cfg.mqttPort = obj["mqttPort"] | 1883;
-        cfg.mqttUser = obj["mqttUser"] | "";
-        String newMqttPass = obj["mqttPass"] | "";
-        cfg.mqttPass = newMqttPass.length() > 0 ? newMqttPass : g_config.mqttPass;
-        cfg.mqttTls = obj["mqttTls"] | false;
+        // MQTT Integration (all optional)
+        JsonObject mqtt = obj["mqtt"];
+        if (mqtt) {
+          cfg.mqttHost = mqtt["host"] | "";
+          cfg.mqttPort = mqtt["port"] | 1883;
+          cfg.mqttUser = mqtt["user"] | "";
+          String newMqttPass = mqtt["pass"] | "";
+          cfg.mqttPass = newMqttPass.length() > 0 ? newMqttPass : g_config.mqttPass;
+          cfg.mqttTls = mqtt["tls"] | false;
+        } else {
+          // Legacy flat format support
+          cfg.mqttHost = obj["mqttHost"] | "";
+          cfg.mqttPort = obj["mqttPort"] | 1883;
+          cfg.mqttUser = obj["mqttUser"] | "";
+          String newMqttPass = obj["mqttPass"] | "";
+          cfg.mqttPass = newMqttPass.length() > 0 ? newMqttPass : g_config.mqttPass;
+          cfg.mqttTls = obj["mqttTls"] | false;
+        }
+        
+        // Loki Integration (all optional)
+        JsonObject loki = obj["loki"];
+        if (loki) {
+          cfg.lokiHost = loki["host"] | "";
+          cfg.lokiUser = loki["user"] | "";
+          String newLokiPass = loki["pass"] | "";
+          cfg.lokiPass = newLokiPass.length() > 0 ? newLokiPass : g_config.lokiPass;
+        } else {
+          cfg.lokiHost = obj["lokiHost"] | "";
+          cfg.lokiUser = obj["lokiUser"] | "";
+          String newLokiPass = obj["lokiPass"] | "";
+          cfg.lokiPass = newLokiPass.length() > 0 ? newLokiPass : g_config.lokiPass;
+        }
         
         // Timing settings
         cfg.powerPulseMs = obj["powerPulseMs"] | 500;

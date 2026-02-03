@@ -208,13 +208,19 @@ bool Networking_loadConfig() {
   String storedWifiPass = g_prefs.getString("wifiPassObf", "");
   g_config.wifiPass = deobfuscatePassword(storedWifiPass, key);
   
-  // MQTT settings
+  // MQTT Integration
   g_config.mqttHost = g_prefs.getString("mqttHost", "");
   g_config.mqttPort = g_prefs.getUShort("mqttPort", 1883);
   g_config.mqttUser = g_prefs.getString("mqttUser", "");
   String storedMqttPass = g_prefs.getString("mqttPassObf", "");
   g_config.mqttPass = deobfuscatePassword(storedMqttPass, key);
   g_config.mqttTls = g_prefs.getBool("mqttTls", false);
+  
+  // Loki Integration
+  g_config.lokiHost = g_prefs.getString("lokiHost", "");
+  g_config.lokiUser = g_prefs.getString("lokiUser", "");
+  String storedLokiPass = g_prefs.getString("lokiPassObf", "");
+  g_config.lokiPass = deobfuscatePassword(storedLokiPass, key);
   
   // Timing settings
   g_config.powerPulseMs = g_prefs.getULong("powerPulseMs", 500);
@@ -265,12 +271,17 @@ bool Networking_saveConfig(const StoredConfig &cfg) {
   g_prefs.putString("wifiSsid", cfg.wifiSsid);
   g_prefs.putString("wifiPassObf", obfuscatePassword(cfg.wifiPass, key));
   
-  // MQTT settings (password obfuscated)
+  // MQTT Integration (password obfuscated)
   g_prefs.putString("mqttHost", cfg.mqttHost);
   g_prefs.putUShort("mqttPort", cfg.mqttPort);
   g_prefs.putString("mqttUser", cfg.mqttUser);
   g_prefs.putString("mqttPassObf", obfuscatePassword(cfg.mqttPass, key));
   g_prefs.putBool("mqttTls", cfg.mqttTls);
+  
+  // Loki Integration (password obfuscated)
+  g_prefs.putString("lokiHost", cfg.lokiHost);
+  g_prefs.putString("lokiUser", cfg.lokiUser);
+  g_prefs.putString("lokiPassObf", obfuscatePassword(cfg.lokiPass, key));
   
   // Timing settings
   g_prefs.putULong("powerPulseMs", cfg.powerPulseMs);

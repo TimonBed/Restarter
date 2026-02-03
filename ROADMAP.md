@@ -124,6 +124,18 @@ Die CE-Kennzeichnung ist für den Verkauf elektronischer Geräte in der EU verpf
 | **Stresstests**       | Mittel     | ⬜ Langzeit-Stabilitätstests           |
 | **Speicheranalyse**   | Mittel     | ✅ Heap-Statistiken in Web-UI angezeigt |
 
+### Integrationen
+
+
+| Punkt                    | Priorität | Status                                  |
+| -------------------------- | ------------ | ----------------------------------------- |
+| **REST API**             | Hoch       | ✅ Vollständige API mit Auth + CSRF     |
+| **WebSocket**            | Hoch       | ✅ Echtzeit-Status-Updates              |
+| **MQTT**                 | Hoch       | ✅ Home Assistant Auto-Discovery        |
+| **Prometheus**           | Hoch       | ✅ GET /metrics Endpunkt                |
+| **Loki**                 | Hoch       | ✅ Log-Shipping an Grafana Loki         |
+| **Grafana Dashboard**    | Mittel     | ⬜ Vorgefertigtes Dashboard erstellen   |
+
 ---
 
 ## 4. Sicherheitshärtung
