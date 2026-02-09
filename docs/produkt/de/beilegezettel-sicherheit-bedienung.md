@@ -1,13 +1,16 @@
+<img src="../../images/logo.svg" alt="Logo" width="120" />
+
 # PC Restarter  
 ## Sicherheitshinweise, Installation & Bedienungsanleitung  
 ### Vollständige Fassung (Vorder- und Rückseite)
 
 ---
 
-**Produktname:** PC Restarter  
-**Produktart:** Netzwerkfähiges Steuergerät für Desktop-PCs  
-**Version:** 1.0  
-**Stand:** Februar 2026  
+| **Produktname** | PC Restarter |
+|-----------------|--------------|
+| **Produktart** | Netzwerkfähiges Steuergerät für Desktop-PCs |
+| **Version** | 1.0 |
+| **Stand** | Februar 2026 |  
 
 **Layout-Hinweis:**  
 Beidseitig auf DIN A5 oder DIN A4 drucken, mittig falten.
@@ -87,11 +90,13 @@ Funktionen:
 
 ## 2. Lieferumfang
 
-- 1× PC Restarter Gerät  
-- 1× USB-A Stromkabel  
-- 1× Mainboard-Anschlusskabel (Power SW / Power LED)  
-- 1× Kurzanleitung  
-- 1× Sicherheitshinweise  
+| Menge | Artikel |
+|-------|---------|
+| 1× | PC Restarter Gerät |
+| 1× | USB-A Stromkabel |
+| 1× | Mainboard-Anschlusskabel (Power SW / Power LED) |
+| 1× | Kurzanleitung |
+| 1× | Sicherheitshinweise |  
 
 ---
 
@@ -113,15 +118,14 @@ Funktionen:
 
 ## 4. Kompatibilität
 
-### Unterstützt
-- Desktop-PCs mit ATX / Micro-ATX / Mini-ITX
-- Systeme mit Standard-Frontpanel-Header
-
-### Nicht unterstützt
-- Laptops / Notebooks
-- All-in-One-PCs
-- Apple Macs
-- Systeme ohne Power-SW-Header
+| Status | Systeme |
+|--------|---------|
+| ✅ **Unterstützt** | Desktop-PCs mit ATX / Micro-ATX / Mini-ITX |
+| ✅ **Unterstützt** | Systeme mit Standard-Frontpanel-Header |
+| ❌ **Nicht unterstützt** | Laptops / Notebooks |
+| ❌ **Nicht unterstützt** | All-in-One-PCs |
+| ❌ **Nicht unterstützt** | Apple Macs |
+| ❌ **Nicht unterstützt** | Systeme ohne Power-SW-Header |
 
 ---
 
@@ -146,11 +150,12 @@ Antistatik-Hinweise:
 
 Der PC Restarter wird **zwischen Gehäuse-Taster und Mainboard** geschaltet.
 
-### Anschlüsse:
-- **MB_PWR_SW** → Mainboard Power-Switch
-- **MB_PWR_LED** → Mainboard Power-LED
-- **CASE_PWR_SW** → Gehäuse-Power-Taster
-- **CASE_PWR_LED** → Gehäuse-Power-LED
+| Anschluss | Bezeichnung | Beschreibung |
+|-----------|-------------|--------------|
+| **MB_PWR_SW** | Mainboard Power-Switch | Anschluss am Mainboard |
+| **MB_PWR_LED** | Mainboard Power-LED | Anschluss am Mainboard (Polarität beachten!) |
+| **CASE_PWR_SW** | Gehäuse-Power-Taster | Anschluss am Gehäuse-Taster |
+| **CASE_PWR_LED** | Gehäuse-Power-LED | Anschluss am Gehäuse-LED (Polarität beachten!) |
 
 **Hinweis:**  
 Beim Power-Switch ist die Polarität egal.  
@@ -160,24 +165,23 @@ Bei der Power-LED **muss + und − korrekt angeschlossen sein**.
 
 ## 7. Stromversorgung
 
-### Option A (empfohlen): Interner USB-Header  
-- Saubere Kabelführung
-- Versorgung auch im Standby
-
-### Option B: Externes USB-Netzteil  
-- 5 V / 1 A
-- Dauerstrom erforderlich
+| Option | Beschreibung | Vorteile |
+|--------|--------------|----------|
+| **A (empfohlen)** | Interner USB-Header | Saubere Kabelführung, Versorgung auch im Standby |
+| **B** | Externes USB-Netzteil | 5 V / 1 A, Dauerstrom erforderlich |
 
 ---
 
 ## 8. Ersteinrichtung
 
-1. WLAN „**PC-Restarter-XXXXXX**“ verbinden  
-2. Browser öffnen: `http://192.168.4.1`  
-3. WLAN auswählen, Passwort eingeben  
-4. Einstellungen speichern  
+| Schritt | Aktion |
+|---------|--------|
+| 1 | WLAN „**PC-Restarter-XXXXXX**" verbinden |
+| 2 | Browser öffnen: `http://192.168.4.1` |
+| 3 | WLAN auswählen, Passwort eingeben |
+| 4 | Einstellungen speichern |
 
-Danach erreichbar über:
+**Danach erreichbar über:**
 - Router-IP oder
 - `http://pc-restarter.local`
 
@@ -185,9 +189,11 @@ Danach erreichbar über:
 
 ## 9. Bedienung
 
-- **Gehäuse-Taster:** Funktioniert wie gewohnt
-- **Web-Interface:** Ein / Aus / Neustart / Status
-- **MQTT:** Fernsteuerung & Integration in Smart-Home-Systeme
+| Methode | Funktionen |
+|---------|------------|
+| **Gehäuse-Taster** | Funktioniert wie gewohnt |
+| **Web-Interface** | Ein / Aus / Neustart / Status |
+| **MQTT** | Fernsteuerung & Integration in Smart-Home-Systeme |
 
 ---
 
@@ -201,7 +207,9 @@ Danach erreichbar über:
 
 ## 11. Entsorgung
 
-♻️ **Nicht im Hausmüll entsorgen!**  
+<img src="../../../images/WEEE_2.svg" alt="WEEE Symbol" width="40" />
+
+**Nicht im Hausmüll entsorgen!**  
 
 Dieses Gerät unterliegt der **WEEE-Richtlinie 2012/19/EU**.  
 Entsorgung über kommunale Sammelstellen oder Rückgabe beim Händler.
@@ -210,13 +218,17 @@ Entsorgung über kommunale Sammelstellen oder Rückgabe beim Händler.
 
 ## 12. Konformität & Rechtliches
 
+<img src="../../../images/CE.svg" alt="CE Marking" width="40" />
+
 ### EU-Konformitätserklärung
 
 Dieses Produkt entspricht den einschlägigen EU-Richtlinien:
 
-- 2014/53/EU (RED – Funkanlagenrichtlinie)  
-- 2011/65/EU (RoHS)  
-- 2014/30/EU (EMV)  
+| Richtlinie | Beschreibung |
+|------------|--------------|
+| 2014/53/EU | RED – Funkanlagenrichtlinie |
+| 2011/65/EU | RoHS |
+| 2014/30/EU | EMV |
 
 Die vollständige EU-Konformitätserklärung ist erhältlich unter:
 `https://[domain].de/conformity`
@@ -238,6 +250,7 @@ Deutschland
 
 ## Fußzeile
 
-CE-Kennzeichnung · WEEE-Symbol · IP20  
+<img src="../../../images/CE.svg" alt="CE Marking" width="30" /> <img src="../../../images/WEEE_2.svg" alt="WEEE Symbol" width="30" /> IP20  
+
 © 2026 [Firmenname] – Alle Rechte vorbehalten  
 Stand: Februar 2026
