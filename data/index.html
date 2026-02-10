@@ -212,6 +212,30 @@
       <!-- Device Settings -->
       <section id="device-section" data-tab-panel="settings" data-sta-only class="tab-panel rounded-xl bg-slate-900 p-4 space-y-3 hidden">
         <h2 class="text-base font-semibold">Device Settings</h2>
+        <div class="space-y-2 rounded-lg bg-slate-800 p-3">
+          <h3 class="text-sm font-semibold">Firmware Update</h3>
+          <p class="text-xs text-slate-400">
+            Current: <span id="ota-current-version">—</span>
+          </p>
+          <p class="text-xs text-slate-400 hidden" id="ota-remote-wrap">
+            Latest: <span id="ota-remote-version">—</span>
+          </p>
+          <p class="text-xs text-slate-300 hidden" id="ota-notes"></p>
+          <p class="text-xs text-rose-500 hidden" id="ota-error"></p>
+          <div class="h-2 rounded-full bg-slate-700 overflow-hidden hidden" id="ota-progress-wrap">
+            <div id="ota-progress" class="h-full bg-violet-600 w-0"></div>
+          </div>
+          <div class="flex gap-2">
+            <button id="ota-check-btn" type="button"
+              class="flex-1 rounded-lg bg-slate-700 hover:bg-slate-600 py-2 font-semibold text-sm">
+              Check for Updates
+            </button>
+            <button id="ota-update-btn" type="button"
+              class="flex-1 rounded-lg bg-violet-600 hover:bg-violet-500 py-2 font-semibold text-sm hidden">
+              Update Now
+            </button>
+          </div>
+        </div>
         <p class="text-xs text-slate-400">Reset device configuration and start fresh setup wizard.</p>
         <button id="factory-reset-btn" type="button"
           class="w-full rounded-lg bg-rose-600 hover:bg-rose-500 active:bg-rose-700 py-2 font-semibold text-sm">
@@ -221,6 +245,6 @@
 
     </main>
 
-    <script src="/script.js?v=11"></script>
+    <script src="/script.js?v=12"></script>
   </body>
 </html>

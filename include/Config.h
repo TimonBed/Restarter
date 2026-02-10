@@ -12,6 +12,9 @@ namespace Config {
 
 // Firmware version string
 constexpr char FW_VERSION[] = "0.2.0";
+constexpr char OTA_VERSION_URL[] = "https://raw.githubusercontent.com/TimonBed/Restarter/main/version.json";
+constexpr uint32_t OTA_CHECK_TIMEOUT_MS = 10000;
+constexpr uint32_t OTA_DOWNLOAD_TIMEOUT_MS = 30000;
 
 // GPIO pin assignments (edit for your wiring)
 constexpr uint8_t PIN_PWR_LED = 4;        // PC power LED

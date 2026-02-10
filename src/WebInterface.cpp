@@ -34,6 +34,7 @@
 
 #include "Config.h"
 #include "Constants.h"
+#include "OtaUpdate.h"
 #include "PCController.h"
 
 // Global objects defined in main.cpp
@@ -236,7 +237,7 @@ static String buildStatusJson() {
    *   - GET /api/status endpoint
    *   - WebSocket clients on connect and periodically
    */
-  StaticJsonDocument<512> doc;
+  StaticJsonDocument<1024> doc;
   
   // Message type (helps UI distinguish status from logs)
   doc["type"] = "status";
@@ -244,6 +245,7 @@ static String buildStatusJson() {
   // Device identity
   doc["hostname"] = g_state.hostname;
   doc["deviceId"] = g_state.deviceId;
+  doc["fwVersion"] = Config::FW_VERSION;
   
   // Network status
   doc["apMode"] = g_state.apMode;
@@ -287,6 +289,22 @@ static String buildStatusJson() {
   // CSRF token for API requests (only in STA mode)
   if (!g_state.apMode) {
     doc["csrfToken"] = getCsrfToken();
+  }
+
+  // OTA status (for frontend update UI)
+  StaticJsonDocument<512> otaDoc;
+  if (deserializeJson(otaDoc, OtaUpdate_getStatusJson()) == DeserializationError::Ok) {
+    JsonObject ota = doc.createNestedObject("ota");
+    ota["checking"] = otaDoc["checking"] | false;
+    ota["updateInProgress"] = otaDoc["updateInProgress"] | false;
+    ota["available"] = otaDoc["available"] | false;
+    ota["progress"] = otaDoc["progress"] | 0;
+    ota["currentVersion"] = otaDoc["currentVersion"] | Config::FW_VERSION;
+    ota["remoteVersion"] = otaDoc["remoteVersion"] | "";
+    ota["notes"] = otaDoc["notes"] | "";
+    ota["error"] = otaDoc["error"] | "";
+    ota["lastCheckOk"] = otaDoc["lastCheckOk"] | false;
+    ota["lastCheckMs"] = otaDoc["lastCheckMs"] | 0;
   }
   
   String out;
@@ -393,6 +411,40 @@ void WebInterface_setup() {
   // Returns current device status as JSON
   g_server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "application/json", buildStatusJson());
+  });
+
+  // -------------------------------------------------------------------------
+  // API: GET /api/ota/check (PROTECTED)
+  // -------------------------------------------------------------------------
+  g_server.on("/api/ota/check", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!checkAuth(request)) return;
+
+    OtaUpdate_checkVersion();
+    request->send(200, "application/json", OtaUpdate_getStatusJson());
+  });
+
+  // -------------------------------------------------------------------------
+  // API: GET /api/ota/status (PROTECTED)
+  // -------------------------------------------------------------------------
+  g_server.on("/api/ota/status", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!checkAuth(request)) return;
+    request->send(200, "application/json", OtaUpdate_getStatusJson());
+  });
+
+  // -------------------------------------------------------------------------
+  // API: POST /api/ota/update (PROTECTED + CSRF)
+  // -------------------------------------------------------------------------
+  g_server.on("/api/ota/update", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (!checkAuth(request)) return;
+    if (!validateCsrfToken(request)) return;
+
+    if (!OtaUpdate_startUpdate()) {
+      request->send(409, "application/json", OtaUpdate_getStatusJson());
+      return;
+    }
+
+    WebInterface_logAction("OTA update started");
+    request->send(202, "application/json", OtaUpdate_getStatusJson());
   });
 
   // -------------------------------------------------------------------------
