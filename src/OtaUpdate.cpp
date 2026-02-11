@@ -5,6 +5,7 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <esp_ota_ops.h>
+#include <esp_partition.h>
 
 #include "Config.h"
 #include "OtaUpdate.h"
@@ -60,12 +61,22 @@ struct OtaState {
   String currentVersion = Config::FW_VERSION;
   String remoteVersion;
   String firmwareUrl;
+  String filesystemUrl;
   String notes;
   String error;
 };
 
+struct OtaTaskParams {
+  String firmwareUrl;
+  String filesystemUrl;
+};
+
 SemaphoreHandle_t g_otaMutex = nullptr;
 OtaState g_ota;
+bool g_otaHasFilesystemStage = false;
+
+constexpr char kLittleFsPartitionLabel[] = "littlefs";
+constexpr size_t kFlashEraseSectorSize = 4096;
 
 class OtaLock {
  public:
@@ -177,8 +188,17 @@ void updateProgress(size_t written, size_t total) {
   if (total > 0) {
     uint32_t pct = static_cast<uint32_t>((written * 100U) / total);
     if (pct > 100U) pct = 100U;
+    if (g_otaHasFilesystemStage) {
+      pct /= 2U;  // 0..50 for firmware, 50..100 for LittleFS
+    }
     g_ota.progress = static_cast<uint8_t>(pct);
   }
+}
+
+void setProgressPercent(uint8_t pct) {
+  OtaLock lock;
+  if (!lock.locked()) return;
+  g_ota.progress = pct;
 }
 
 void setTaskError(const String &error) {
@@ -189,9 +209,108 @@ void setTaskError(const String &error) {
   g_ota.rebootRequired = false;
 }
 
+bool flashLittleFsImage(const String &url, String &errorOut) {
+  const esp_partition_t *partition = esp_partition_find_first(
+      ESP_PARTITION_TYPE_DATA,
+      ESP_PARTITION_SUBTYPE_DATA_SPIFFS,
+      kLittleFsPartitionLabel);
+  if (!partition) {
+    errorOut = "LittleFS partition not found";
+    return false;
+  }
+
+  const int kMaxRetries = 3;
+  const int kRetryDelayMs = 500;
+
+  for (int attempt = 1; attempt <= kMaxRetries; attempt++) {
+    WiFiClientSecure client;
+#ifdef RESTARTER_DEV_AP_PASSWORD
+    client.setInsecure();
+#else
+    client.setCACert(kGithubRootCA);
+#endif
+    client.setTimeout(Config::OTA_DOWNLOAD_TIMEOUT_MS / 1000);
+
+    HTTPClient https;
+    https.setTimeout(Config::OTA_DOWNLOAD_TIMEOUT_MS);
+    https.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    if (!https.begin(client, url)) {
+      errorOut = "Failed to initialize LittleFS request";
+      return false;
+    }
+
+    int code = https.GET();
+    if (code != HTTP_CODE_OK) {
+      https.end();
+      if (code == -1 && attempt < kMaxRetries) {
+        delay(kRetryDelayMs * attempt);
+        continue;
+      }
+      errorOut = "LittleFS download failed: HTTP " + String(code);
+      return false;
+    }
+
+    int contentLength = https.getSize();
+    if (contentLength <= 0) {
+      https.end();
+      errorOut = "LittleFS image has invalid size";
+      return false;
+    }
+
+    size_t imageSize = static_cast<size_t>(contentLength);
+    if (imageSize > partition->size) {
+      https.end();
+      errorOut = "LittleFS image too large";
+      return false;
+    }
+
+    size_t eraseSize = (imageSize + kFlashEraseSectorSize - 1) & ~(kFlashEraseSectorSize - 1);
+    esp_err_t eraseErr = esp_partition_erase_range(partition, 0, eraseSize);
+    if (eraseErr != ESP_OK) {
+      https.end();
+      errorOut = "LittleFS erase failed";
+      return false;
+    }
+
+    WiFiClient *stream = https.getStreamPtr();
+    uint8_t buffer[1024];
+    size_t written = 0;
+    while (written < imageSize) {
+      size_t remaining = imageSize - written;
+      size_t toRead = remaining < sizeof(buffer) ? remaining : sizeof(buffer);
+      int bytes = stream->readBytes(reinterpret_cast<char *>(buffer), toRead);
+      if (bytes <= 0) {
+        https.end();
+        errorOut = "LittleFS download interrupted";
+        return false;
+      }
+
+      esp_err_t writeErr = esp_partition_write(partition, written, buffer, static_cast<size_t>(bytes));
+      if (writeErr != ESP_OK) {
+        https.end();
+        errorOut = "LittleFS flash write failed";
+        return false;
+      }
+
+      written += static_cast<size_t>(bytes);
+      uint32_t stage = static_cast<uint32_t>((written * 50U) / imageSize);
+      if (stage > 50U) stage = 50U;
+      setProgressPercent(static_cast<uint8_t>(50U + stage));
+    }
+
+    https.end();
+    return true;
+  }
+
+  errorOut = "LittleFS download failed";
+  return false;
+}
+
 void otaTask(void *param) {
-  String url = *static_cast<String *>(param);
-  delete static_cast<String *>(param);
+  OtaTaskParams *taskParams = static_cast<OtaTaskParams *>(param);
+  String firmwareUrl = taskParams->firmwareUrl;
+  String filesystemUrl = taskParams->filesystemUrl;
+  delete taskParams;
 
   WiFiClientSecure client;
 #ifdef RESTARTER_DEV_AP_PASSWORD
@@ -203,7 +322,7 @@ void otaTask(void *param) {
   HTTPClient https;
   https.setTimeout(Config::OTA_DOWNLOAD_TIMEOUT_MS);
   https.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-  if (!https.begin(client, url)) {
+  if (!https.begin(client, firmwareUrl)) {
     setTaskError("Failed to initialize HTTPS update request");
     vTaskDelete(nullptr);
     return;
@@ -233,9 +352,11 @@ void otaTask(void *param) {
   }
 
   WiFiClient *stream = https.getStreamPtr();
+  g_otaHasFilesystemStage = (filesystemUrl.length() > 0);
   Update.onProgress(updateProgress);
   size_t written = Update.writeStream(*stream);
   bool endOk = Update.end(true);
+  g_otaHasFilesystemStage = false;
   https.end();
 
   if (written != static_cast<size_t>(contentLength) || !endOk || !Update.isFinished()) {
@@ -246,6 +367,16 @@ void otaTask(void *param) {
     setTaskError(err);
     vTaskDelete(nullptr);
     return;
+  }
+
+  if (filesystemUrl.length() > 0) {
+    setProgressPercent(50);
+    String fsError;
+    if (!flashLittleFsImage(filesystemUrl, fsError)) {
+      setTaskError(fsError);
+      vTaskDelete(nullptr);
+      return;
+    }
   }
 
   {
@@ -306,6 +437,7 @@ bool OtaUpdate_checkVersion() {
   bool ok = httpsGetString(Config::OTA_RELEASES_API, responseBody, Config::OTA_CHECK_TIMEOUT_MS, fetchError);
   String remoteVersion;
   String firmwareUrl;
+  String filesystemUrl;
   String notes;
 
   if (ok) {
@@ -330,7 +462,8 @@ bool OtaUpdate_checkVersion() {
         const char *name = asset["name"];
         if (name && strcmp(name, "firmware.bin") == 0) {
           firmwareUrl = asset["browser_download_url"] | "";
-          break;
+        } else if (name && strcmp(name, "littlefs.bin") == 0) {
+          filesystemUrl = asset["browser_download_url"] | "";
         }
       }
 
@@ -352,6 +485,7 @@ bool OtaUpdate_checkVersion() {
     g_ota.updateAvailable = false;
     g_ota.remoteVersion = "";
     g_ota.firmwareUrl = "";
+    g_ota.filesystemUrl = "";
     g_ota.notes = "";
     g_ota.error = fetchError;
     return false;
@@ -360,6 +494,7 @@ bool OtaUpdate_checkVersion() {
   g_ota.lastCheckOk = true;
   g_ota.remoteVersion = remoteVersion;
   g_ota.firmwareUrl = firmwareUrl;
+  g_ota.filesystemUrl = filesystemUrl;
   g_ota.notes = notes;
   g_ota.updateAvailable = (compareVersions(g_ota.currentVersion, remoteVersion) < 0);
   g_ota.error = "";
@@ -385,17 +520,17 @@ bool OtaUpdate_startUpdate() {
   g_ota.progress = 0;
   g_ota.error = "";
 
-  String *taskUrl = new String(g_ota.firmwareUrl);
+  OtaTaskParams *taskParams = new OtaTaskParams{g_ota.firmwareUrl, g_ota.filesystemUrl};
   BaseType_t taskOk = xTaskCreate(
       otaTask,
       "ota_task",
       12288,
-      taskUrl,
+      taskParams,
       1,
       nullptr);
 
   if (taskOk != pdPASS) {
-    delete taskUrl;
+    delete taskParams;
     g_ota.updateInProgress = false;
     g_ota.error = "Failed to start OTA task";
     return false;

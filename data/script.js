@@ -26,6 +26,7 @@
   const otaRemoteVersion = $("ota-remote-version");
   const otaNotes = $("ota-notes");
   const otaError = $("ota-error");
+  const otaState = $("ota-state");
   const otaProgressWrap = $("ota-progress-wrap");
   const otaProgress = $("ota-progress");
   const otaCheckBtn = $("ota-check-btn");
@@ -127,6 +128,13 @@
     }
   }
 
+  function setOtaState(label, stateClass) {
+    if (!otaState) return;
+    otaState.classList.remove("hidden", "is-checking", "is-up-to-date", "is-available", "is-error");
+    otaState.textContent = label;
+    if (stateClass) otaState.classList.add(stateClass);
+  }
+
   function renderOtaStatus(ota) {
     if (!otaCurrentVersion) return;
 
@@ -155,10 +163,31 @@
     otaUpdateBtn.classList.toggle("hidden", !canUpdate);
     otaUpdateBtn.disabled = !canUpdate;
     otaCheckBtn.disabled = !!ota.checking || !!ota.updateInProgress;
-    if (ota.updateInProgress) {
+
+    const remote = String(ota.remoteVersion || "").trim();
+    const current = String(ota.currentVersion || otaCurrentVersion.textContent || "").trim();
+    const isUpToDate = !!ota.lastCheckOk && !ota.available && remote.length > 0 && remote === current;
+
+    if (hasError) {
+      setOtaState("Check failed", "is-error");
+    } else if (ota.updateInProgress) {
+      setOtaState("Updating...", "is-checking");
       otaCheckBtn.textContent = "Updating...";
       otaUpdateBtn.textContent = "Updating...";
+    } else if (ota.checking) {
+      setOtaState("Checking...", "is-checking");
+      otaCheckBtn.textContent = "Checking...";
+      otaUpdateBtn.textContent = "Update Now";
+    } else if (canUpdate) {
+      setOtaState("Update available", "is-available");
+      otaCheckBtn.textContent = "Check for Updates";
+      otaUpdateBtn.textContent = "Update Now";
+    } else if (isUpToDate) {
+      setOtaState("Up to date", "is-up-to-date");
+      otaCheckBtn.textContent = "Checked just now";
+      otaUpdateBtn.textContent = "Update Now";
     } else {
+      setOtaState("Idle", "");
       otaCheckBtn.textContent = "Check for Updates";
       otaUpdateBtn.textContent = "Update Now";
     }
@@ -394,6 +423,9 @@
 
   if (otaCheckBtn) {
     otaCheckBtn.addEventListener("click", function () {
+      otaCheckBtn.disabled = true;
+      otaCheckBtn.textContent = "Checking...";
+      setOtaState("Checking...", "is-checking");
       fetch("/api/ota/check", { credentials: "include" })
         .then(function (r) { return r.json(); })
         .then(function (ota) {

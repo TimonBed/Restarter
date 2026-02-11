@@ -11,7 +11,7 @@
 namespace Config {
 
 // Firmware version string
-constexpr char FW_VERSION[] = "0.2.0";
+constexpr char FW_VERSION[] = "0.4.0";
 constexpr char OTA_RELEASES_API[] = "https://api.github.com/repos/TimonBed/Restarter/releases/latest";
 constexpr uint32_t OTA_CHECK_TIMEOUT_MS = 15000;
 constexpr uint32_t OTA_DOWNLOAD_TIMEOUT_MS = 30000;

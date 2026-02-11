@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Restarter</title>
-    <link rel="stylesheet" href="/style.css?v=10" />
+    <link rel="stylesheet" href="/style.css?v=11" />
   </head>
   <body class="bg-slate-950 text-slate-100 min-h-screen">
     <main class="max-w-xl mx-auto p-4 space-y-4">
@@ -15,7 +15,7 @@
       </header>
 
       <!-- Tabs: Status (status+controls), Integrations, Log, Settings (timing+device) -->
-      <nav class="tabs-nav flex gap-1 p-1 rounded-xl bg-slate-900" role="tablist">
+      <nav class="tabs-nav flex gap-1 p-1" role="tablist">
         <button type="button" class="tab-btn flex-1 rounded-lg py-2 px-2 text-xs font-medium tab-active" data-tab="status" role="tab">Status</button>
         <button type="button" class="tab-btn flex-1 rounded-lg py-2 px-2 text-xs font-medium" data-tab="integrations" role="tab">Integrations</button>
         <button type="button" class="tab-btn flex-1 rounded-lg py-2 px-2 text-xs font-medium" data-tab="log" role="tab">Log</button>
@@ -212,29 +212,32 @@
       <!-- Device Settings -->
       <section id="device-section" data-tab-panel="settings" data-sta-only class="tab-panel rounded-xl bg-slate-900 p-4 space-y-3 hidden">
         <h2 class="text-base font-semibold">Device Settings</h2>
-        <div class="space-y-2 rounded-lg bg-slate-800 p-3">
+        <div class="ota-header">
           <h3 class="text-sm font-semibold">Firmware Update</h3>
-          <p class="text-xs text-slate-400">
+          <span id="ota-state" class="ota-state hidden">Idle</span>
+        </div>
+        <div class="ota-meta-grid">
+          <p class="text-xs text-slate-400 ota-meta-item">
             Current: <span id="ota-current-version">—</span>
           </p>
-          <p class="text-xs text-slate-400 hidden" id="ota-remote-wrap">
+          <p class="text-xs text-slate-400 hidden ota-meta-item" id="ota-remote-wrap">
             Latest: <span id="ota-remote-version">—</span>
           </p>
-          <p class="text-xs text-slate-300 hidden" id="ota-notes"></p>
-          <p class="text-xs text-rose-500 hidden" id="ota-error"></p>
-          <div class="h-2 rounded-full bg-slate-700 overflow-hidden hidden" id="ota-progress-wrap">
-            <div id="ota-progress" class="h-full bg-violet-600 w-0"></div>
-          </div>
-          <div class="flex gap-2">
-            <button id="ota-check-btn" type="button"
-              class="flex-1 rounded-lg bg-slate-700 hover:bg-slate-600 py-2 font-semibold text-sm">
-              Check for Updates
-            </button>
-            <button id="ota-update-btn" type="button"
-              class="flex-1 rounded-lg bg-violet-600 hover:bg-violet-500 py-2 font-semibold text-sm hidden">
-              Update Now
-            </button>
-          </div>
+        </div>
+        <p class="text-xs text-slate-300 hidden ota-notes" id="ota-notes"></p>
+        <p class="text-xs text-rose-500 hidden ota-error" id="ota-error"></p>
+        <div class="h-2 rounded-full bg-slate-700 overflow-hidden hidden ota-progress-wrap" id="ota-progress-wrap">
+          <div id="ota-progress" class="h-full bg-violet-600 w-0 ota-progress"></div>
+        </div>
+        <div class="flex gap-2">
+          <button id="ota-check-btn" type="button"
+            class="flex-1 rounded-lg bg-slate-700 hover:bg-slate-600 py-2 font-semibold text-sm ota-btn">
+            Check for Updates
+          </button>
+          <button id="ota-update-btn" type="button"
+            class="flex-1 rounded-lg bg-violet-600 hover:bg-violet-500 py-2 font-semibold text-sm hidden ota-btn">
+            Update Now
+          </button>
         </div>
         <p class="text-xs text-slate-400">Reset device configuration and start fresh setup wizard.</p>
         <button id="factory-reset-btn" type="button"
@@ -245,6 +248,6 @@
 
     </main>
 
-    <script src="/script.js?v=12"></script>
+    <script src="/script.js?v=13"></script>
   </body>
 </html>
