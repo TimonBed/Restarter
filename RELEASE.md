@@ -30,29 +30,15 @@ If the binary exceeds 1.79 MB:
 - Consider optimizing code or reducing features
 - Or adjust partition sizes in `partitions_ota.csv` (reduces LittleFS space)
 
-### 3. Create version.json
-
-Create or update `version.json` in the repository root:
-
-```json
-{
-  "version": "0.3.0",
-  "url": "https://github.com/TimonBed/Restarter/releases/download/v0.3.0/firmware.bin",
-  "notes": "Bug fixes and improvements"
-}
-```
-
-**Important:** Update the `url` field to match your release tag (e.g., `v0.3.0`).
-
-### 4. Commit and Push Changes
+### 3. Commit and Push Changes
 
 ```bash
-git add include/Config.h version.json
+git add include/Config.h
 git commit -m "Release v0.3.0"
 git push
 ```
 
-### 5. Create GitHub Release
+### 4. Create GitHub Release
 
 1. Go to: https://github.com/TimonBed/Restarter/releases/new
 2. **Tag version:** `v0.3.0` (must match the version in Config.h)
@@ -61,11 +47,12 @@ git push
 5. **Attach binary:** Upload `.pio/build/esp32c3/firmware.bin` as `firmware.bin`
 6. Click **"Publish release"**
 
-### 6. Verify OTA Update
+### 5. Verify OTA Update
 
 After publishing:
 - Devices can check for updates via the web UI (Settings → Firmware Update)
-- The OTA system will fetch `version.json` from the repo and compare versions
+- The OTA system fetches the latest GitHub release tag and compares versions
+- Looks for `firmware.bin` in release assets
 - If a newer version is available, users can download and install it
 
 ## Version Numbering
@@ -85,22 +72,12 @@ VERSION="0.3.0"
 # Build
 pio run
 
-# Create version.json
-cat > version.json << EOF
-{
-  "version": "$VERSION",
-  "url": "https://github.com/TimonBed/Restarter/releases/download/v$VERSION/firmware.bin",
-  "notes": "Release $VERSION"
-}
-EOF
-
 # Copy firmware
 cp .pio/build/esp32c3/firmware.bin firmware.bin
 
 echo "Next steps:"
-echo "1. Review version.json"
-echo "2. Commit: git add version.json include/Config.h && git commit -m 'Release v$VERSION'"
-echo "3. Push: git push"
-echo "4. Create GitHub release: https://github.com/TimonBed/Restarter/releases/new"
-echo "5. Upload firmware.bin to the release"
+echo "1. Commit: git add include/Config.h && git commit -m 'Release v$VERSION'"
+echo "2. Push: git push"
+echo "3. Create GitHub release: https://github.com/TimonBed/Restarter/releases/new"
+echo "4. Upload firmware.bin as asset (must be named firmware.bin)"
 ```

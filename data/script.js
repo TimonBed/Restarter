@@ -35,7 +35,7 @@
   let otaPollTimer = null;
 
   function initConfig() {
-    fetch("/api/config")
+    fetch("/api/config", { credentials: "include" })
       .then((r) => r.json())
       .then((cfg) => {
         // Timing fields
@@ -165,7 +165,7 @@
   }
 
   function fetchOtaStatus() {
-    return fetch("/api/ota/status")
+    return fetch("/api/ota/status", { credentials: "include" })
       .then(function (r) { return r.json(); })
       .then(function (ota) {
         renderOtaStatus(ota || {});
@@ -243,7 +243,7 @@
 
   // API actions
   function postAction(endpoint) {
-    fetch(endpoint, { method: "POST" }).catch(function () {});
+    fetch(endpoint, { method: "POST", credentials: "include" }).catch(function () {});
   }
 
   // Hold button factory
@@ -290,7 +290,7 @@
   // Timing form submit
   timingForm.addEventListener("submit", function (e) {
     e.preventDefault();
-    fetch("/api/config")
+    fetch("/api/config", { credentials: "include" })
       .then((r) => r.json())
       .then((cfg) => {
         const payload = {
@@ -304,6 +304,7 @@
         };
         return fetch("/api/config", {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
@@ -366,7 +367,7 @@
       factoryResetBtn.disabled = true;
       factoryResetBtn.textContent = "Resetting...";
       
-      fetch("/api/factory-reset", { method: "POST" })
+      fetch("/api/factory-reset", { method: "POST", credentials: "include" })
         .then(function() {
           addLog("Factory reset initiated - device will restart in AP mode");
           factoryResetBtn.textContent = "Restarting...";
@@ -393,7 +394,7 @@
 
   if (otaCheckBtn) {
     otaCheckBtn.addEventListener("click", function () {
-      fetch("/api/ota/check")
+      fetch("/api/ota/check", { credentials: "include" })
         .then(function (r) { return r.json(); })
         .then(function (ota) {
           renderOtaStatus(ota || {});
@@ -421,6 +422,7 @@
 
       fetch("/api/ota/update", {
         method: "POST",
+        credentials: "include",
         headers: { "X-CSRF-Token": csrfToken }
       })
         .then(function (r) { return r.json(); })

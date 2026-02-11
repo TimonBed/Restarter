@@ -166,8 +166,13 @@ static void loadIdentity() {
   uint64_t mac = ESP.getEfuseMac();
   g_state.deviceId = formatDeviceId(mac);
   g_state.hostname = String(Config::HOSTNAME_PREFIX) + g_state.deviceId;
+#ifdef RESTARTER_DEV_AP_PASSWORD
+  g_state.apPassword = Config::AP_PASSWORD_DEV;
+  g_state.defaultAdminPassword = Config::ADMIN_PASSWORD_DEV;
+#else
   g_state.apPassword = generateUniquePassword(mac, 0x5A3C9E7B);        // Salt for AP
   g_state.defaultAdminPassword = generateUniquePassword(mac, 0x7B9E3C5A); // Different salt for admin
+#endif
   
   Serial.print("Device ID: ");
   Serial.println(g_state.deviceId);
@@ -424,8 +429,13 @@ void Networking_setup() {
   digitalWrite(Config::PIN_WIFI_ERROR_LED, LOW);
   
   // Mount LittleFS filesystem (contains web UI files)
-  if (!LittleFS.begin(true)) {
+  // Use explicit partition label "littlefs" to match partitions_ota.csv
+  // formatOnFail=false: never wipe on mount failure (prevents OTA from erasing UI)
+  if (!LittleFS.begin(false, "/littlefs", 5, "littlefs")) {
     Serial.println("WARNING: LittleFS mount failed!");
+  } else if (!LittleFS.exists("/onboarding.html") && !LittleFS.exists("/index.html")) {
+    Serial.println("WARNING: Web UI not uploaded. Run: pio run -t uploadfs");
+    Serial.println("Tip: Use same port for upload and uploadfs");
   }
   
   // Load saved configuration

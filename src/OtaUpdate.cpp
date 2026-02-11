@@ -125,26 +125,50 @@ int compareVersions(const String &a, const String &b) {
 }
 
 bool httpsGetString(const String &url, String &responseBody, int timeoutMs, String &errorOut) {
-  WiFiClientSecure client;
-  client.setCACert(kGithubRootCA);
+  const int kMaxRetries = 3;
+  const int kRetryDelayMs = 500;
 
-  HTTPClient https;
-  https.setTimeout(timeoutMs);
-  if (!https.begin(client, url)) {
-    errorOut = "HTTPS begin failed";
-    return false;
-  }
+  for (int attempt = 1; attempt <= kMaxRetries; attempt++) {
+    WiFiClientSecure client;
+#ifdef RESTARTER_DEV_AP_PASSWORD
+    client.setInsecure();  // Skip TLS verify in dev (avoids cert chain issues)
+#else
+    client.setCACert(kGithubRootCA);
+#endif
+    client.setTimeout(timeoutMs / 1000);
 
-  int code = https.GET();
-  if (code != HTTP_CODE_OK) {
-    errorOut = "HTTP error: " + String(code);
+    HTTPClient https;
+    https.setTimeout(timeoutMs);
+    https.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    if (!https.begin(client, url)) {
+      errorOut = "HTTPS begin failed";
+      return false;
+    }
+
+    https.addHeader("Accept", "application/vnd.github.v3+json");
+    https.addHeader("User-Agent", "PC-Restarter-OTA/1.0");
+
+    int code = https.GET();
+
+    if (code == HTTP_CODE_OK) {
+      responseBody = https.getString();
+      https.end();
+      return true;
+    }
+
     https.end();
-    return false;
-  }
 
-  responseBody = https.getString();
-  https.end();
-  return true;
+    if (code == -1) {
+      errorOut = "Connection failed (WiFi/DNS/TLS)";
+      if (attempt < kMaxRetries) {
+        delay(kRetryDelayMs * attempt);
+      }
+    } else {
+      errorOut = "HTTP " + String(code);
+      return false;
+    }
+  }
+  return false;
 }
 
 void updateProgress(size_t written, size_t total) {
@@ -170,10 +194,15 @@ void otaTask(void *param) {
   delete static_cast<String *>(param);
 
   WiFiClientSecure client;
+#ifdef RESTARTER_DEV_AP_PASSWORD
+  client.setInsecure();
+#else
   client.setCACert(kGithubRootCA);
+#endif
 
   HTTPClient https;
   https.setTimeout(Config::OTA_DOWNLOAD_TIMEOUT_MS);
+  https.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
   if (!https.begin(client, url)) {
     setTaskError("Failed to initialize HTTPS update request");
     vTaskDelete(nullptr);
@@ -274,24 +303,40 @@ bool OtaUpdate_checkVersion() {
 
   String responseBody;
   String fetchError;
-  bool ok = httpsGetString(Config::OTA_VERSION_URL, responseBody, Config::OTA_CHECK_TIMEOUT_MS, fetchError);
+  bool ok = httpsGetString(Config::OTA_RELEASES_API, responseBody, Config::OTA_CHECK_TIMEOUT_MS, fetchError);
   String remoteVersion;
   String firmwareUrl;
   String notes;
 
   if (ok) {
-    StaticJsonDocument<768> doc;
+    StaticJsonDocument<2048> doc;
     DeserializationError err = deserializeJson(doc, responseBody);
     if (err) {
       ok = false;
-      fetchError = "Invalid version.json";
+      fetchError = "Invalid releases API response";
     } else {
-      remoteVersion = String(doc["version"] | "");
-      firmwareUrl = String(doc["url"] | "");
-      notes = String(doc["notes"] | "");
+      // tag_name e.g. "v0.3.0" -> strip leading "v"
+      String tagName = doc["tag_name"] | "";
+      if (tagName.length() > 0 && tagName[0] == 'v') {
+        tagName.remove(0, 1);
+      }
+      remoteVersion = tagName;
+      notes = doc["body"] | "";
+
+      // Find firmware.bin in assets
+      JsonArray assets = doc["assets"].as<JsonArray>();
+      for (size_t i = 0; i < assets.size(); i++) {
+        JsonObject asset = assets[i].as<JsonObject>();
+        const char *name = asset["name"];
+        if (name && strcmp(name, "firmware.bin") == 0) {
+          firmwareUrl = asset["browser_download_url"] | "";
+          break;
+        }
+      }
+
       if (remoteVersion.length() == 0 || firmwareUrl.length() == 0) {
         ok = false;
-        fetchError = "version.json missing fields";
+        fetchError = "Release missing tag or firmware.bin";
       }
     }
   }

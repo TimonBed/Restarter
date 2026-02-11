@@ -141,8 +141,13 @@ static bool validateCsrfToken(AsyncWebServerRequest *request) {
 // =============================================================================
 
 // Rate limiting constants
+#ifdef RESTARTER_DEV_AP_PASSWORD
+constexpr uint8_t MAX_AUTH_FAILURES = 20;     // Relaxed in dev
+constexpr uint32_t AUTH_LOCKOUT_MS = 60000;   // 1 minute in dev
+#else
 constexpr uint8_t MAX_AUTH_FAILURES = 5;       // Max failed attempts before lockout
 constexpr uint32_t AUTH_LOCKOUT_MS = 300000;   // 5 minute lockout
+#endif
 constexpr uint32_t AUTH_FAILURE_DECAY_MS = 60000; // Failures decay after 1 minute
 
 static uint32_t g_lastAuthFailMs = 0;
@@ -193,6 +198,11 @@ static bool checkAuth(AsyncWebServerRequest *request) {
   if (g_state.apMode) {
     return true;
   }
+
+#ifdef RESTARTER_DEV_AP_PASSWORD
+  // Dev mode: skip auth to avoid browser dialog loop (credentials often rejected)
+  return true;
+#endif
   
   // Check rate limiting
   if (isRateLimited()) {
@@ -401,7 +411,14 @@ void WebInterface_setup() {
       response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
       request->send(response);
     } else {
-      request->send(200, "text/plain", "UI not uploaded. Run: pio run --target uploadfs");
+      request->send_P(200, "text/html", PSTR(
+        "<!DOCTYPE html><html><head><meta charset=utf-8><meta name=viewport content=\"width=device-width\">"
+        "<title>Setup Required</title><style>body{font-family:system-ui;max-width:400px;margin:2em auto;padding:1em}"
+        "h1{color:#c00}p{line-height:1.6}code{background:#eee;padding:.2em .4em}</style></head><body>"
+        "<h1>Web UI not uploaded</h1><p>Upload the UI files to flash:</p>"
+        "<p><code>pio run -t uploadfs</code></p>"
+        "<p>Or full upload: <code>pio run -t upload && pio run -t uploadfs</code></p>"
+        "</body></html>"));
     }
   };
 
@@ -687,22 +704,43 @@ void WebInterface_setup() {
   // -------------------------------------------------------------------------
   // Static Files
   // -------------------------------------------------------------------------
-  // Serve all files from LittleFS with no-cache headers
+  // Serve static assets (CSS, JS, etc.) - require auth in STA mode so credentials
+  // are sent for resources loaded after the authenticated page load
+  g_server.on("/index.html", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!g_state.apMode && !checkAuth(request)) return;
+    if (LittleFS.exists("/index.html")) {
+      AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html");
+      response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      request->send(response);
+    } else {
+      request->send(404);
+    }
+  });
   g_server.serveStatic("/", LittleFS, "/")
       .setCacheControl("no-cache, no-store, must-revalidate");
   
   // -------------------------------------------------------------------------
   // Root Path
   // -------------------------------------------------------------------------
-  // Serve onboarding wizard in AP mode, dashboard in STA mode
+  // Serve onboarding wizard in AP mode, dashboard in STA mode.
+  // In STA mode, require auth for the dashboard so the browser stores credentials
+  // before any fetch; otherwise the auth dialog loops on API 401 responses.
   g_server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!g_state.apMode && !checkAuth(request)) return;
     const char* file = g_state.apMode ? "/onboarding.html" : "/index.html";
     if (LittleFS.exists(file)) {
       AsyncWebServerResponse *response = request->beginResponse(LittleFS, file, "text/html");
       response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
       request->send(response);
     } else {
-      request->send(200, "text/plain", "UI not uploaded. Run: pio run --target uploadfs");
+      request->send_P(200, "text/html", PSTR(
+        "<!DOCTYPE html><html><head><meta charset=utf-8><meta name=viewport content=\"width=device-width\">"
+        "<title>Setup Required</title><style>body{font-family:system-ui;max-width:400px;margin:2em auto;padding:1em}"
+        "h1{color:#c00}p{line-height:1.6}code{background:#eee;padding:.2em .4em}</style></head><body>"
+        "<h1>Web UI not uploaded</h1><p>Upload the UI files to flash:</p>"
+        "<p><code>pio run -t uploadfs</code></p>"
+        "<p>Or full upload: <code>pio run -t upload && pio run -t uploadfs</code></p>"
+        "</body></html>"));
     }
   });
   
