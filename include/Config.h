@@ -12,6 +12,9 @@ namespace Config {
 
 // Firmware version string
 constexpr char FW_VERSION[] = "0.2.0";
+constexpr char OTA_RELEASES_API[] = "https://api.github.com/repos/TimonBed/Restarter/releases/latest";
+constexpr uint32_t OTA_CHECK_TIMEOUT_MS = 15000;
+constexpr uint32_t OTA_DOWNLOAD_TIMEOUT_MS = 30000;
 
 // GPIO pin assignments (edit for your wiring)
 constexpr uint8_t PIN_PWR_LED = 4;        // PC power LED
@@ -47,5 +50,11 @@ constexpr uint32_t STATUS_BROADCAST_MS = 1000;
 constexpr char CONFIG_PATH[] = "/config.json";
 constexpr char HOSTNAME_PREFIX[] = "restarter-";
 constexpr char AP_SSID_PREFIX[] = "Restarter-";
+
+// Development: fixed passwords (enable via build_flags -DRESTARTER_DEV_AP_PASSWORD)
+#ifdef RESTARTER_DEV_AP_PASSWORD
+constexpr char AP_PASSWORD_DEV[] = "Test1234";   // WPA2 requires 8–63 chars
+constexpr char ADMIN_PASSWORD_DEV[] = "Klaus1234";  // Web UI admin
+#endif
 
 } // namespace Config

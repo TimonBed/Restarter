@@ -24,6 +24,7 @@
 #include "PCController.h"
 #include "TempSensor.h"
 #include "FactoryReset.h"
+#include "OtaUpdate.h"
 #include "integrations/MqttHandler.h"
 #include "integrations/MetricsHandler.h"
 #include "integrations/LokiHandler.h"
@@ -209,6 +210,7 @@ void setup() {
   // Network & Services
   Networking_setup();
   WebInterface_setup();
+  OtaUpdate_setup();
   
   // Integrations
   MqttHandler_setup();

@@ -21,9 +21,21 @@
   const forcePowerProgress = $("force-power-progress");
   const actionLog = $("action-log");
   const timingForm = $("timing-form");
+  const otaCurrentVersion = $("ota-current-version");
+  const otaRemoteWrap = $("ota-remote-wrap");
+  const otaRemoteVersion = $("ota-remote-version");
+  const otaNotes = $("ota-notes");
+  const otaError = $("ota-error");
+  const otaProgressWrap = $("ota-progress-wrap");
+  const otaProgress = $("ota-progress");
+  const otaCheckBtn = $("ota-check-btn");
+  const otaUpdateBtn = $("ota-update-btn");
+
+  let csrfToken = "";
+  let otaPollTimer = null;
 
   function initConfig() {
-    fetch("/api/config")
+    fetch("/api/config", { credentials: "include" })
       .then((r) => r.json())
       .then((cfg) => {
         // Timing fields
@@ -52,6 +64,12 @@
   function updateStatus(data) {
     if (data.hostname) {
       deviceInfo.textContent = data.hostname + (data.deviceId ? " • " + data.deviceId : "");
+    }
+    if (data.fwVersion && otaCurrentVersion) {
+      otaCurrentVersion.textContent = data.fwVersion;
+    }
+    if (data.csrfToken) {
+      csrfToken = data.csrfToken;
     }
     if (data.pcState) {
       pcState.textContent = data.pcState;
@@ -103,6 +121,66 @@
       const totalKb = Math.round(data.totalHeap / 1024);
       $("esp-ram").textContent = freeKb + " / " + totalKb + " KB";
       $("esp-ram-used").style.width = usedPct + "%";
+    }
+    if (data.ota) {
+      renderOtaStatus(data.ota);
+    }
+  }
+
+  function renderOtaStatus(ota) {
+    if (!otaCurrentVersion) return;
+
+    if (ota.currentVersion) {
+      otaCurrentVersion.textContent = ota.currentVersion;
+    }
+
+    const hasRemote = !!ota.remoteVersion;
+    otaRemoteWrap.classList.toggle("hidden", !hasRemote);
+    otaRemoteVersion.textContent = hasRemote ? ota.remoteVersion : "—";
+
+    const hasNotes = !!ota.notes;
+    otaNotes.classList.toggle("hidden", !hasNotes);
+    otaNotes.textContent = hasNotes ? ota.notes : "";
+
+    const hasError = !!ota.error;
+    otaError.classList.toggle("hidden", !hasError);
+    otaError.textContent = hasError ? ota.error : "";
+
+    const progress = Number(ota.progress || 0);
+    const showProgress = !!ota.updateInProgress || progress > 0;
+    otaProgressWrap.classList.toggle("hidden", !showProgress);
+    otaProgress.style.width = Math.max(0, Math.min(100, progress)) + "%";
+
+    const canUpdate = !!ota.available && !ota.updateInProgress;
+    otaUpdateBtn.classList.toggle("hidden", !canUpdate);
+    otaUpdateBtn.disabled = !canUpdate;
+    otaCheckBtn.disabled = !!ota.checking || !!ota.updateInProgress;
+    if (ota.updateInProgress) {
+      otaCheckBtn.textContent = "Updating...";
+      otaUpdateBtn.textContent = "Updating...";
+    } else {
+      otaCheckBtn.textContent = "Check for Updates";
+      otaUpdateBtn.textContent = "Update Now";
+    }
+  }
+
+  function fetchOtaStatus() {
+    return fetch("/api/ota/status", { credentials: "include" })
+      .then(function (r) { return r.json(); })
+      .then(function (ota) {
+        renderOtaStatus(ota || {});
+        return ota;
+      })
+      .catch(function () { return null; });
+  }
+
+  function setOtaPolling(enabled) {
+    if (otaPollTimer) {
+      clearInterval(otaPollTimer);
+      otaPollTimer = null;
+    }
+    if (enabled) {
+      otaPollTimer = setInterval(fetchOtaStatus, 1200);
     }
   }
 
@@ -165,7 +243,7 @@
 
   // API actions
   function postAction(endpoint) {
-    fetch(endpoint, { method: "POST" }).catch(function () {});
+    fetch(endpoint, { method: "POST", credentials: "include" }).catch(function () {});
   }
 
   // Hold button factory
@@ -212,7 +290,7 @@
   // Timing form submit
   timingForm.addEventListener("submit", function (e) {
     e.preventDefault();
-    fetch("/api/config")
+    fetch("/api/config", { credentials: "include" })
       .then((r) => r.json())
       .then((cfg) => {
         const payload = {
@@ -226,6 +304,7 @@
         };
         return fetch("/api/config", {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
@@ -288,7 +367,7 @@
       factoryResetBtn.disabled = true;
       factoryResetBtn.textContent = "Resetting...";
       
-      fetch("/api/factory-reset", { method: "POST" })
+      fetch("/api/factory-reset", { method: "POST", credentials: "include" })
         .then(function() {
           addLog("Factory reset initiated - device will restart in AP mode");
           factoryResetBtn.textContent = "Restarting...";
@@ -309,6 +388,51 @@
           factoryResetBtn.disabled = false;
           factoryResetBtn.textContent = "Factory Reset & Reconfigure";
           addLog("Factory reset failed");
+        });
+    });
+  }
+
+  if (otaCheckBtn) {
+    otaCheckBtn.addEventListener("click", function () {
+      fetch("/api/ota/check", { credentials: "include" })
+        .then(function (r) { return r.json(); })
+        .then(function (ota) {
+          renderOtaStatus(ota || {});
+          if (ota && ota.available) {
+            addLog("Firmware update available: " + (ota.remoteVersion || "new version"));
+          } else {
+            addLog("No firmware update available");
+          }
+        })
+        .catch(function () {
+          addLog("Failed to check for updates");
+        });
+    });
+  }
+
+  if (otaUpdateBtn) {
+    otaUpdateBtn.addEventListener("click", function () {
+      if (!csrfToken) {
+        addLog("Update blocked: missing CSRF token");
+        return;
+      }
+      if (!confirm("Install firmware update now? The device will reboot after update.")) {
+        return;
+      }
+
+      fetch("/api/ota/update", {
+        method: "POST",
+        credentials: "include",
+        headers: { "X-CSRF-Token": csrfToken }
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (ota) {
+          renderOtaStatus(ota || {});
+          addLog("Firmware update started");
+          setOtaPolling(true);
+        })
+        .catch(function () {
+          addLog("Failed to start firmware update");
         });
     });
   }
@@ -338,4 +462,7 @@
   // Initialize
   initConfig();
   connectWs();
+  fetchOtaStatus().then(function (ota) {
+    setOtaPolling(!!(ota && ota.updateInProgress));
+  });
 })();

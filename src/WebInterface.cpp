@@ -34,6 +34,7 @@
 
 #include "Config.h"
 #include "Constants.h"
+#include "OtaUpdate.h"
 #include "PCController.h"
 
 // Global objects defined in main.cpp
@@ -140,8 +141,13 @@ static bool validateCsrfToken(AsyncWebServerRequest *request) {
 // =============================================================================
 
 // Rate limiting constants
+#ifdef RESTARTER_DEV_AP_PASSWORD
+constexpr uint8_t MAX_AUTH_FAILURES = 20;     // Relaxed in dev
+constexpr uint32_t AUTH_LOCKOUT_MS = 60000;   // 1 minute in dev
+#else
 constexpr uint8_t MAX_AUTH_FAILURES = 5;       // Max failed attempts before lockout
 constexpr uint32_t AUTH_LOCKOUT_MS = 300000;   // 5 minute lockout
+#endif
 constexpr uint32_t AUTH_FAILURE_DECAY_MS = 60000; // Failures decay after 1 minute
 
 static uint32_t g_lastAuthFailMs = 0;
@@ -192,6 +198,11 @@ static bool checkAuth(AsyncWebServerRequest *request) {
   if (g_state.apMode) {
     return true;
   }
+
+#ifdef RESTARTER_DEV_AP_PASSWORD
+  // Dev mode: skip auth to avoid browser dialog loop (credentials often rejected)
+  return true;
+#endif
   
   // Check rate limiting
   if (isRateLimited()) {
@@ -236,7 +247,7 @@ static String buildStatusJson() {
    *   - GET /api/status endpoint
    *   - WebSocket clients on connect and periodically
    */
-  StaticJsonDocument<512> doc;
+  StaticJsonDocument<1024> doc;
   
   // Message type (helps UI distinguish status from logs)
   doc["type"] = "status";
@@ -244,6 +255,7 @@ static String buildStatusJson() {
   // Device identity
   doc["hostname"] = g_state.hostname;
   doc["deviceId"] = g_state.deviceId;
+  doc["fwVersion"] = Config::FW_VERSION;
   
   // Network status
   doc["apMode"] = g_state.apMode;
@@ -287,6 +299,22 @@ static String buildStatusJson() {
   // CSRF token for API requests (only in STA mode)
   if (!g_state.apMode) {
     doc["csrfToken"] = getCsrfToken();
+  }
+
+  // OTA status (for frontend update UI)
+  StaticJsonDocument<512> otaDoc;
+  if (deserializeJson(otaDoc, OtaUpdate_getStatusJson()) == DeserializationError::Ok) {
+    JsonObject ota = doc.createNestedObject("ota");
+    ota["checking"] = otaDoc["checking"] | false;
+    ota["updateInProgress"] = otaDoc["updateInProgress"] | false;
+    ota["available"] = otaDoc["available"] | false;
+    ota["progress"] = otaDoc["progress"] | 0;
+    ota["currentVersion"] = otaDoc["currentVersion"] | Config::FW_VERSION;
+    ota["remoteVersion"] = otaDoc["remoteVersion"] | "";
+    ota["notes"] = otaDoc["notes"] | "";
+    ota["error"] = otaDoc["error"] | "";
+    ota["lastCheckOk"] = otaDoc["lastCheckOk"] | false;
+    ota["lastCheckMs"] = otaDoc["lastCheckMs"] | 0;
   }
   
   String out;
@@ -383,7 +411,14 @@ void WebInterface_setup() {
       response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
       request->send(response);
     } else {
-      request->send(200, "text/plain", "UI not uploaded. Run: pio run --target uploadfs");
+      request->send_P(200, "text/html", PSTR(
+        "<!DOCTYPE html><html><head><meta charset=utf-8><meta name=viewport content=\"width=device-width\">"
+        "<title>Setup Required</title><style>body{font-family:system-ui;max-width:400px;margin:2em auto;padding:1em}"
+        "h1{color:#c00}p{line-height:1.6}code{background:#eee;padding:.2em .4em}</style></head><body>"
+        "<h1>Web UI not uploaded</h1><p>Upload the UI files to flash:</p>"
+        "<p><code>pio run -t uploadfs</code></p>"
+        "<p>Or full upload: <code>pio run -t upload && pio run -t uploadfs</code></p>"
+        "</body></html>"));
     }
   };
 
@@ -393,6 +428,40 @@ void WebInterface_setup() {
   // Returns current device status as JSON
   g_server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "application/json", buildStatusJson());
+  });
+
+  // -------------------------------------------------------------------------
+  // API: GET /api/ota/check (PROTECTED)
+  // -------------------------------------------------------------------------
+  g_server.on("/api/ota/check", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!checkAuth(request)) return;
+
+    OtaUpdate_checkVersion();
+    request->send(200, "application/json", OtaUpdate_getStatusJson());
+  });
+
+  // -------------------------------------------------------------------------
+  // API: GET /api/ota/status (PROTECTED)
+  // -------------------------------------------------------------------------
+  g_server.on("/api/ota/status", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!checkAuth(request)) return;
+    request->send(200, "application/json", OtaUpdate_getStatusJson());
+  });
+
+  // -------------------------------------------------------------------------
+  // API: POST /api/ota/update (PROTECTED + CSRF)
+  // -------------------------------------------------------------------------
+  g_server.on("/api/ota/update", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (!checkAuth(request)) return;
+    if (!validateCsrfToken(request)) return;
+
+    if (!OtaUpdate_startUpdate()) {
+      request->send(409, "application/json", OtaUpdate_getStatusJson());
+      return;
+    }
+
+    WebInterface_logAction("OTA update started");
+    request->send(202, "application/json", OtaUpdate_getStatusJson());
   });
 
   // -------------------------------------------------------------------------
@@ -635,22 +704,43 @@ void WebInterface_setup() {
   // -------------------------------------------------------------------------
   // Static Files
   // -------------------------------------------------------------------------
-  // Serve all files from LittleFS with no-cache headers
+  // Serve static assets (CSS, JS, etc.) - require auth in STA mode so credentials
+  // are sent for resources loaded after the authenticated page load
+  g_server.on("/index.html", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!g_state.apMode && !checkAuth(request)) return;
+    if (LittleFS.exists("/index.html")) {
+      AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html");
+      response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      request->send(response);
+    } else {
+      request->send(404);
+    }
+  });
   g_server.serveStatic("/", LittleFS, "/")
       .setCacheControl("no-cache, no-store, must-revalidate");
   
   // -------------------------------------------------------------------------
   // Root Path
   // -------------------------------------------------------------------------
-  // Serve onboarding wizard in AP mode, dashboard in STA mode
+  // Serve onboarding wizard in AP mode, dashboard in STA mode.
+  // In STA mode, require auth for the dashboard so the browser stores credentials
+  // before any fetch; otherwise the auth dialog loops on API 401 responses.
   g_server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!g_state.apMode && !checkAuth(request)) return;
     const char* file = g_state.apMode ? "/onboarding.html" : "/index.html";
     if (LittleFS.exists(file)) {
       AsyncWebServerResponse *response = request->beginResponse(LittleFS, file, "text/html");
       response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
       request->send(response);
     } else {
-      request->send(200, "text/plain", "UI not uploaded. Run: pio run --target uploadfs");
+      request->send_P(200, "text/html", PSTR(
+        "<!DOCTYPE html><html><head><meta charset=utf-8><meta name=viewport content=\"width=device-width\">"
+        "<title>Setup Required</title><style>body{font-family:system-ui;max-width:400px;margin:2em auto;padding:1em}"
+        "h1{color:#c00}p{line-height:1.6}code{background:#eee;padding:.2em .4em}</style></head><body>"
+        "<h1>Web UI not uploaded</h1><p>Upload the UI files to flash:</p>"
+        "<p><code>pio run -t uploadfs</code></p>"
+        "<p>Or full upload: <code>pio run -t upload && pio run -t uploadfs</code></p>"
+        "</body></html>"));
     }
   });
   
