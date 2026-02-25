@@ -32,8 +32,9 @@ extern StoredConfig g_config;
 void PCController::begin() {
   // Configure GPIO pins for inputs and outputs
   
-  // Power LED input (from PC via optocoupler)
-  pinMode(Config::PIN_PWR_LED, INPUT_PULLUP);
+  // LED inputs (from PC via optocouplers)
+  pinMode(Config::PIN_PWR_LED, Config::PWR_LED_PIN_MODE);
+  pinMode(Config::PIN_HDD_LED, Config::HDD_LED_PIN_MODE);
   
   // Relay outputs (active high by default)
   pinMode(Config::PIN_RELAY_POWER, OUTPUT);
@@ -44,7 +45,8 @@ void PCController::begin() {
 
   // Initialize state tracking
   lastPowerOnMs = 0;
-  lastPowerSignal = false;
+  lastPowerSignal = readActive(Config::PIN_PWR_LED, Config::PWR_LED_ACTIVE_HIGH);
+  currentPowerSignal = lastPowerSignal;
   currentState = PCState::OFF;
 }
 
@@ -94,6 +96,8 @@ void PCController::setOutputsInactive() {
   setRelay(Config::PIN_RELAY_RESET, false, Config::RESET_RELAY_ACTIVE_HIGH);
   powerPulseUntilMs = 0;
   resetPulseUntilMs = 0;
+  powerRelayLatched = false;
+  resetRelayLatched = false;
 }
 
 // =============================================================================
@@ -109,6 +113,7 @@ void PCController::pulsePower() {
    * 
    * This is equivalent to pressing and releasing the power button.
    */
+  if (powerRelayLatched) return;
   powerPulseUntilMs = millis() + g_config.powerPulseMs;
   setRelay(Config::PIN_RELAY_POWER, true, Config::POWER_RELAY_ACTIVE_HIGH);
 }
@@ -120,6 +125,7 @@ void PCController::pulseReset() {
    * Same as pulsePower() but for the reset button.
    * Duration is controlled by resetPulseMs (default 500ms).
    */
+  if (resetRelayLatched) return;
   resetPulseUntilMs = millis() + g_config.resetPulseMs;
   setRelay(Config::PIN_RELAY_RESET, true, Config::RESET_RELAY_ACTIVE_HIGH);
 }
@@ -135,6 +141,7 @@ void PCController::forcePower() {
    * WARNING: This is like pulling the power cord - it may cause
    * data loss or filesystem corruption!
    */
+  if (powerRelayLatched) return;
   powerPulseUntilMs = millis() + Config::FORCE_SHUTDOWN_PULSE_MS;
   setRelay(Config::PIN_RELAY_POWER, true, Config::POWER_RELAY_ACTIVE_HIGH);
 }
@@ -177,14 +184,14 @@ void PCController::update() {
   // Step 3: Manage relay pulse timing
   // -------------------------------------------------------------------------
   // Check if power relay pulse should end
-  if (powerPulseUntilMs > 0 && nowMs >= powerPulseUntilMs) {
+  if (!powerRelayLatched && powerPulseUntilMs > 0 && nowMs >= powerPulseUntilMs) {
     setRelay(Config::PIN_RELAY_POWER, false, Config::POWER_RELAY_ACTIVE_HIGH);
     powerPulseUntilMs = 0;
     Serial.println("Power relay: released");
   }
   
   // Check if reset relay pulse should end
-  if (resetPulseUntilMs > 0 && nowMs >= resetPulseUntilMs) {
+  if (!resetRelayLatched && resetPulseUntilMs > 0 && nowMs >= resetPulseUntilMs) {
     setRelay(Config::PIN_RELAY_RESET, false, Config::RESET_RELAY_ACTIVE_HIGH);
     resetPulseUntilMs = 0;
     Serial.println("Reset relay: released");
@@ -212,7 +219,7 @@ void PCController::updateState(uint32_t nowMs) {
    */
   
   // Check if any action is in progress
-  bool actionActive = (powerPulseUntilMs > 0) || (resetPulseUntilMs > 0);
+  bool actionActive = powerRelayActive() || resetRelayActive();
 
   if (actionActive) {
     // While pressing a button, show RESTARTING
@@ -238,9 +245,9 @@ PCState PCController::state() const {
 }
 
 bool PCController::powerRelayActive() const {
-  return powerPulseUntilMs > 0;
+  return powerRelayLatched || powerPulseUntilMs > 0;
 }
 
 bool PCController::resetRelayActive() const {
-  return resetPulseUntilMs > 0;
+  return resetRelayLatched || resetPulseUntilMs > 0;
 }

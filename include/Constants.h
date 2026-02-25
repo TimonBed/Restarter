@@ -48,7 +48,10 @@ struct RuntimeState {
   bool powerRelayActive = false;
   bool resetRelayActive = false;
   float temperature = 0.0f;
+  uint8_t pwrLedRaw = 0;          // Raw GPIO level for PIN_PWR_LED (0/1)
+  uint8_t hddLedRaw = 0;          // Raw GPIO level for PIN_HDD_LED (0/1)
   uint32_t lastHddActiveMs = 0;
+  uint32_t lastHddChangeMs = 0;   // Last edge timestamp for PIN_HDD_LED
   uint32_t freeHeap = 0;
   uint32_t totalHeap = 0;
   uint8_t cpuLoad = 0;

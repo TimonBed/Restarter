@@ -205,6 +205,17 @@
       <!-- Action log -->
       <section id="log-section" data-tab-panel="log" data-sta-only class="tab-panel rounded-xl bg-slate-900 p-4 space-y-3 hidden">
         <h2 class="text-base font-semibold">Action Log</h2>
+        <div class="grid grid-cols-2 gap-2 text-xs text-slate-300">
+          <div class="rounded-lg bg-slate-800 p-2">
+            <div class="text-slate-400">Pin 4 (HDD LED)</div>
+            <div id="pin4-raw" class="text-sm font-semibold">—</div>
+            <div id="pin4-since-change" class="text-xs text-slate-400">Since change: —</div>
+          </div>
+          <div class="rounded-lg bg-slate-800 p-2">
+            <div class="text-slate-400">Pin 5 (PWR LED)</div>
+            <div id="pin5-raw" class="text-sm font-semibold">—</div>
+          </div>
+        </div>
         <div id="action-log"
           class="h-32 overflow-auto rounded-lg bg-slate-800 p-2 text-xs text-slate-300 space-y-1"></div>
       </section>
@@ -248,6 +259,6 @@
 
     </main>
 
-    <script src="/script.js?v=13"></script>
+    <script src="/script.js?v=15"></script>
   </body>
 </html>

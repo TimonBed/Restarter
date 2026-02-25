@@ -55,6 +55,19 @@ TempSensor g_tempSensor;
 bool g_restartPending = false;
 uint32_t g_restartAtMs = 0;
 
+// Latch brief HDD pulses in an ISR so activity isn't missed between loop cycles.
+static volatile bool s_hddActiveLatched = false;
+static volatile bool s_hddChangedLatched = false;
+
+static void IRAM_ATTR onHddSignalChange() {
+  s_hddChangedLatched = true;
+  const int rawHdd = digitalRead(Config::PIN_HDD_LED);
+  const bool hddActive = rawHdd == (Config::HDD_LED_ACTIVE_HIGH ? HIGH : LOW);
+  if (hddActive) {
+    s_hddActiveLatched = true;
+  }
+}
+
 // =============================================================================
 // EXTERNAL FUNCTIONS
 // =============================================================================
@@ -130,6 +143,7 @@ static uint32_t s_lastCpuCalcMs = 0;
  * Update PC controller and sync state to global RuntimeState
  */
 static void updatePCState() {
+  static int s_prevRawHdd = -1;
   g_pc.update();
   
   g_state.pcState = g_pc.state();
@@ -137,10 +151,30 @@ static void updatePCState() {
   g_state.resetRelayActive = g_pc.resetRelayActive();
   g_state.temperature = g_tempSensor.readTemperature();
   
-  bool hddActive = digitalRead(Config::PIN_HDD_LED) == 
-                   (Config::HDD_LED_ACTIVE_HIGH ? HIGH : LOW);
-  if (hddActive) {
-    g_state.lastHddActiveMs = millis();
+  int rawPwr = digitalRead(Config::PIN_PWR_LED);
+  int rawHdd = digitalRead(Config::PIN_HDD_LED);
+  g_state.pwrLedRaw = (rawPwr == HIGH) ? 1 : 0;
+  g_state.hddLedRaw = (rawHdd == HIGH) ? 1 : 0;
+
+  bool hddActive = rawHdd == (Config::HDD_LED_ACTIVE_HIGH ? HIGH : LOW);
+  bool hddLatched = false;
+  bool hddChangedLatched = false;
+  noInterrupts();
+  hddLatched = s_hddActiveLatched;
+  s_hddActiveLatched = false;
+  hddChangedLatched = s_hddChangedLatched;
+  s_hddChangedLatched = false;
+  interrupts();
+
+  const uint32_t nowMs = millis();
+  const bool hddChangedNow = (s_prevRawHdd >= 0) && (rawHdd != s_prevRawHdd);
+  if (hddChangedNow || hddChangedLatched) {
+    g_state.lastHddChangeMs = nowMs;
+  }
+  s_prevRawHdd = rawHdd;
+
+  if (hddActive || hddLatched) {
+    g_state.lastHddActiveMs = nowMs;
   }
 }
 
@@ -204,7 +238,7 @@ void setup() {
   // Hardware
   g_pc.begin();
   g_tempSensor.begin(0, 1);
-  pinMode(Config::PIN_HDD_LED, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(Config::PIN_HDD_LED), onHddSignalChange, CHANGE);
   FactoryReset_setup();
   
   // Network & Services

@@ -9,46 +9,9 @@
 
 #include "Config.h"
 #include "OtaUpdate.h"
+#include "OtaUpdateUtils.h"
 
 namespace {
-
-// USERTrust RSA Certification Authority (used in GitHub TLS chain).
-static const char kGithubRootCA[] PROGMEM = R"EOF(
------BEGIN CERTIFICATE-----
-MIIF3jCCA8agAwIBAgIQAf1tMPyjylGoG7xkDjUDLTANBgkqhkiG9w0BAQwFADCB
-iDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCk5ldyBKZXJzZXkxFDASBgNVBAcTC0pl
-cnNleSBDaXR5MR4wHAYDVQQKExVUaGUgVVNFUlRSVVNUIE5ldHdvcmsxLjAsBgNV
-BAMTJVVTRVJUcnVzdCBSU0EgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwHhcNMTAw
-MjAxMDAwMDAwWhcNMzgwMTE4MjM1OTU5WjCBiDELMAkGA1UEBhMCVVMxEzARBgNV
-BAgTCk5ldyBKZXJzZXkxFDASBgNVBAcTC0plcnNleSBDaXR5MR4wHAYDVQQKExVU
-aGUgVVNFUlRSVVNUIE5ldHdvcmsxLjAsBgNVBAMTJVVTRVJUcnVzdCBSU0EgQ2Vy
-dGlmaWNhdGlvbiBBdXRob3JpdHkwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIK
-AoICAQCAEmUXNg7D2wiz0KxXDXbtzSfTTK1Qg2HiqiBNCS1kCdzOiZ/MPans9s/B
-3PHTsdZ7NygRK0faOca8Ohm0X6a9fZ2jY0K2dvKpOyuR+OJv0OwWIJAJPuLodMkY
-tJHUYmTbf6MG8YgYapAiPLz+E/CHFHv25B+O1ORRxhFnRghRy4YUVD+8M/5+bJz/
-Fp0YvVGONaanZshyZ9shZrHUm3gDwFA66Mzw3LyeTP6vBZY1H1dat//O+T23LLb2
-VN3I5xI6Ta5MirdcmrS3ID3KfyI0rn47aGYBROcBTkZTmzNg95S+UzeQc0PzMsNT
-79uq/nROacdrjGCT3sTHDN/hMq7MkztReJVni+49Vv4M0GkPGw/zJSZrM233bkf6
-c0Plfg6lZrEpfDKEY1WJxA3Bk1QwGROs0303p+tdOmw1XNtB1xLaqUkL39iAigmT
-Yo61Zs8liM2EuLE/pDkP2QKe6xJMlXzzawWpXhaDzLhn4ugTncxbgtNMs+1b/97l
-c6wjOy0AvzVVdAlJ2ElYGn+SNuZRkg7zJn0cTRe8yexDJtC/QV9AqURE9JnnV4ee
-UB9XVKg+/XRjL7FQZQnmWEIuQxpMtPAlR1n6BB6T1CZGSlCBst6+eLf8ZxXhyVeE
-Hg9j1uliutZfVS7qXMYoCAQlObgOK6nyTJccBz8NUvXt7y+CDwIDAQABo0IwQDAd
-BgNVHQ4EFgQUU3m/WqorSs9UgOHYm8Cd8rIDZsswDgYDVR0PAQH/BAQDAgEGMA8G
-A1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQEMBQADggIBAFzUfA3P9wF9QZllDHPF
-Up/L+M+ZBn8b2kMVn54CVVeWFPFSPCeHlCjtHzoBN6J2/FNQwISbxmtOuowhT6KO
-VWKR82kV2LyI48SqC/3vqOlLVSoGIG1VeCkZ7l8wXEskEVX/JJpuXior7gtNn3/3
-ATiUFJVDBwn7YKnuHKsSjKCaXqeYalltiz8I+8jRRa8YFWSQEg9zKC7F4iRO/Fjs
-8PRF/iKz6y+O0tlFYQXBl2+odnKPi4w2r78NBc5xjeambx9spnFixdjQg3IM8WcR
-iQycE0xyNN+81XHfqnHd4blsjDwSXWXavVcStkNr/+XeTWYRUc+ZruwXtuhxkYze
-Sf7dNXGiFSeUHM9h4ya7b6NnJSFd5t0dCy5oGzuCr+yDZ4XUmFF0sbmZgIn/f3gZ
-XHlKYC6SQK5MNyosycdiyA5d9zZbyuAlJQG03RoHnHcAP9Dc1ew91Pq7P8yF1m9/
-qS3fuQL39ZeatTXaw2ewh0qpKJ4jjv9cJ2vhsE/zB+4ALtRZh8tSQZXq9EfX7mRB
-VXyNWQKV3WKdwrnuWih0hKWbt5DHDAff9Yk2dDLWKMGwsAvgnEzDHNb842m1R0aB
-L6KCq9NjRHDEjf8tM7qtj3u1cIiuPhnPQCjY/MiQu12ZIvVS5ljFH4gxQ+6IHdfG
-jjxDah2nGN59PRbxYvnKkKj9
------END CERTIFICATE-----
-)EOF";
 
 struct OtaState {
   bool checking = false;
@@ -77,6 +40,8 @@ bool g_otaHasFilesystemStage = false;
 
 constexpr char kLittleFsPartitionLabel[] = "littlefs";
 constexpr size_t kFlashEraseSectorSize = 4096;
+constexpr int kHttpMaxRetries = 3;
+constexpr int kHttpRetryDelayMs = 500;
 
 class OtaLock {
  public:
@@ -98,88 +63,12 @@ class OtaLock {
   bool locked_;
 };
 
-int parseVersionPart(const String &token) {
-  String t = token;
-  t.trim();
-  while (t.length() > 0 && !isDigit(t[0])) {
-    t.remove(0, 1);
-  }
-  if (t.length() == 0) return 0;
-  return t.toInt();
-}
-
-int compareVersions(const String &a, const String &b) {
-  int ai[3] = {0, 0, 0};
-  int bi[3] = {0, 0, 0};
-
-  for (int i = 0, start = 0; i < 3 && start <= a.length(); i++) {
-    int dot = a.indexOf('.', start);
-    String part = (dot >= 0) ? a.substring(start, dot) : a.substring(start);
-    ai[i] = parseVersionPart(part);
-    if (dot < 0) break;
-    start = dot + 1;
-  }
-
-  for (int i = 0, start = 0; i < 3 && start <= b.length(); i++) {
-    int dot = b.indexOf('.', start);
-    String part = (dot >= 0) ? b.substring(start, dot) : b.substring(start);
-    bi[i] = parseVersionPart(part);
-    if (dot < 0) break;
-    start = dot + 1;
-  }
-
-  for (int i = 0; i < 3; i++) {
-    if (ai[i] < bi[i]) return -1;
-    if (ai[i] > bi[i]) return 1;
-  }
-  return 0;
-}
-
-bool httpsGetString(const String &url, String &responseBody, int timeoutMs, String &errorOut) {
-  const int kMaxRetries = 3;
-  const int kRetryDelayMs = 500;
-
-  for (int attempt = 1; attempt <= kMaxRetries; attempt++) {
-    WiFiClientSecure client;
-#ifdef RESTARTER_DEV_AP_PASSWORD
-    client.setInsecure();  // Skip TLS verify in dev (avoids cert chain issues)
-#else
-    client.setCACert(kGithubRootCA);
-#endif
-    client.setTimeout(timeoutMs / 1000);
-
-    HTTPClient https;
-    https.setTimeout(timeoutMs);
-    https.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-    if (!https.begin(client, url)) {
-      errorOut = "HTTPS begin failed";
-      return false;
-    }
-
-    https.addHeader("Accept", "application/vnd.github.v3+json");
-    https.addHeader("User-Agent", "PC-Restarter-OTA/1.0");
-
-    int code = https.GET();
-
-    if (code == HTTP_CODE_OK) {
-      responseBody = https.getString();
-      https.end();
-      return true;
-    }
-
-    https.end();
-
-    if (code == -1) {
-      errorOut = "Connection failed (WiFi/DNS/TLS)";
-      if (attempt < kMaxRetries) {
-        delay(kRetryDelayMs * attempt);
-      }
-    } else {
-      errorOut = "HTTP " + String(code);
-      return false;
-    }
-  }
-  return false;
+void clearReleaseFields() {
+  g_ota.updateAvailable = false;
+  g_ota.remoteVersion = "";
+  g_ota.firmwareUrl = "";
+  g_ota.filesystemUrl = "";
+  g_ota.notes = "";
 }
 
 void updateProgress(size_t written, size_t total) {
@@ -219,21 +108,12 @@ bool flashLittleFsImage(const String &url, String &errorOut) {
     return false;
   }
 
-  const int kMaxRetries = 3;
-  const int kRetryDelayMs = 500;
-
-  for (int attempt = 1; attempt <= kMaxRetries; attempt++) {
+  for (int attempt = 1; attempt <= kHttpMaxRetries; attempt++) {
     WiFiClientSecure client;
-#ifdef RESTARTER_DEV_AP_PASSWORD
-    client.setInsecure();
-#else
-    client.setCACert(kGithubRootCA);
-#endif
-    client.setTimeout(Config::OTA_DOWNLOAD_TIMEOUT_MS / 1000);
+    OtaUpdateUtils::configureSecureClient(client, Config::OTA_DOWNLOAD_TIMEOUT_MS);
 
     HTTPClient https;
-    https.setTimeout(Config::OTA_DOWNLOAD_TIMEOUT_MS);
-    https.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    OtaUpdateUtils::configureHttpsClient(https, Config::OTA_DOWNLOAD_TIMEOUT_MS);
     if (!https.begin(client, url)) {
       errorOut = "Failed to initialize LittleFS request";
       return false;
@@ -242,8 +122,8 @@ bool flashLittleFsImage(const String &url, String &errorOut) {
     int code = https.GET();
     if (code != HTTP_CODE_OK) {
       https.end();
-      if (code == -1 && attempt < kMaxRetries) {
-        delay(kRetryDelayMs * attempt);
+      if (code == -1 && attempt < kHttpMaxRetries) {
+        delay(kHttpRetryDelayMs * attempt);
         continue;
       }
       errorOut = "LittleFS download failed: HTTP " + String(code);
@@ -313,41 +193,36 @@ void otaTask(void *param) {
   delete taskParams;
 
   WiFiClientSecure client;
-#ifdef RESTARTER_DEV_AP_PASSWORD
-  client.setInsecure();
-#else
-  client.setCACert(kGithubRootCA);
-#endif
+  OtaUpdateUtils::configureSecureClient(client, Config::OTA_DOWNLOAD_TIMEOUT_MS);
 
   HTTPClient https;
-  https.setTimeout(Config::OTA_DOWNLOAD_TIMEOUT_MS);
-  https.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-  if (!https.begin(client, firmwareUrl)) {
-    setTaskError("Failed to initialize HTTPS update request");
+  OtaUpdateUtils::configureHttpsClient(https, Config::OTA_DOWNLOAD_TIMEOUT_MS);
+  auto failTask = [](const String &err) {
+    setTaskError(err);
     vTaskDelete(nullptr);
+  };
+  if (!https.begin(client, firmwareUrl)) {
+    failTask("Failed to initialize HTTPS update request");
     return;
   }
 
   int code = https.GET();
   if (code != HTTP_CODE_OK) {
     https.end();
-    setTaskError("Update download failed: HTTP " + String(code));
-    vTaskDelete(nullptr);
+    failTask("Update download failed: HTTP " + String(code));
     return;
   }
 
   int contentLength = https.getSize();
   if (contentLength <= 0) {
     https.end();
-    setTaskError("Invalid update size");
-    vTaskDelete(nullptr);
+    failTask("Invalid update size");
     return;
   }
 
   if (!Update.begin(static_cast<size_t>(contentLength), U_FLASH)) {
     https.end();
-    setTaskError("Not enough OTA space");
-    vTaskDelete(nullptr);
+    failTask("Not enough OTA space");
     return;
   }
 
@@ -364,8 +239,7 @@ void otaTask(void *param) {
     if (err.length() == 0) {
       err = "OTA write failed";
     }
-    setTaskError(err);
-    vTaskDelete(nullptr);
+    failTask(err);
     return;
   }
 
@@ -373,8 +247,7 @@ void otaTask(void *param) {
     setProgressPercent(50);
     String fsError;
     if (!flashLittleFsImage(filesystemUrl, fsError)) {
-      setTaskError(fsError);
-      vTaskDelete(nullptr);
+      failTask(fsError);
       return;
     }
   }
@@ -434,7 +307,8 @@ bool OtaUpdate_checkVersion() {
 
   String responseBody;
   String fetchError;
-  bool ok = httpsGetString(Config::OTA_RELEASES_API, responseBody, Config::OTA_CHECK_TIMEOUT_MS, fetchError);
+  bool ok = OtaUpdateUtils::httpsGetString(
+      Config::OTA_RELEASES_API, responseBody, Config::OTA_CHECK_TIMEOUT_MS, fetchError);
   String remoteVersion;
   String firmwareUrl;
   String filesystemUrl;
@@ -482,11 +356,7 @@ bool OtaUpdate_checkVersion() {
 
   if (!ok) {
     g_ota.lastCheckOk = false;
-    g_ota.updateAvailable = false;
-    g_ota.remoteVersion = "";
-    g_ota.firmwareUrl = "";
-    g_ota.filesystemUrl = "";
-    g_ota.notes = "";
+    clearReleaseFields();
     g_ota.error = fetchError;
     return false;
   }
@@ -496,7 +366,7 @@ bool OtaUpdate_checkVersion() {
   g_ota.firmwareUrl = firmwareUrl;
   g_ota.filesystemUrl = filesystemUrl;
   g_ota.notes = notes;
-  g_ota.updateAvailable = (compareVersions(g_ota.currentVersion, remoteVersion) < 0);
+  g_ota.updateAvailable = (OtaUpdateUtils::compareVersions(g_ota.currentVersion, remoteVersion) < 0);
   g_ota.error = "";
   return true;
 }
@@ -521,13 +391,7 @@ bool OtaUpdate_startUpdate() {
   g_ota.error = "";
 
   OtaTaskParams *taskParams = new OtaTaskParams{g_ota.firmwareUrl, g_ota.filesystemUrl};
-  BaseType_t taskOk = xTaskCreate(
-      otaTask,
-      "ota_task",
-      12288,
-      taskParams,
-      1,
-      nullptr);
+  BaseType_t taskOk = xTaskCreate(otaTask, "ota_task", 12288, taskParams, 1, nullptr);
 
   if (taskOk != pdPASS) {
     delete taskParams;

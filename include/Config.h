@@ -17,13 +17,18 @@ constexpr uint32_t OTA_CHECK_TIMEOUT_MS = 15000;
 constexpr uint32_t OTA_DOWNLOAD_TIMEOUT_MS = 30000;
 
 // GPIO pin assignments (edit for your wiring)
-constexpr uint8_t PIN_PWR_LED = 4;        // PC power LED
-constexpr uint8_t PIN_HDD_LED = 5;        // PC HDD activity LED
+constexpr uint8_t PIN_PWR_LED = 5;        // PC power LED
+constexpr uint8_t PIN_HDD_LED = 4;        // PC HDD activity LED
 constexpr uint8_t PIN_FACTORY_RESET = 9;  // Factory reset button
 
-constexpr uint8_t PIN_RELAY_POWER = 6;    // Power button relay
-constexpr uint8_t PIN_RELAY_RESET = 7;    // Reset button relay
+constexpr uint8_t PIN_RELAY_POWER = 7;    // Power button relay
+constexpr uint8_t PIN_RELAY_RESET = 6;    // Reset button relay
 constexpr uint8_t PIN_WIFI_ERROR_LED = 10; // Status LED
+
+// Input pin mode for LED sense lines.
+// Optocoupler outputs are typically open-collector, so internal pull-up is default.
+constexpr uint8_t PWR_LED_PIN_MODE = INPUT_PULLUP;
+constexpr uint8_t HDD_LED_PIN_MODE = INPUT_PULLUP;
 
 // Signal polarity (set to match your hardware)
 constexpr bool PWR_LED_ACTIVE_HIGH = false;
@@ -44,7 +49,7 @@ constexpr uint32_t WIFI_CONNECT_TIMEOUT_MS = 15000;
 constexpr uint32_t AP_IDLE_TIMEOUT_MS = 300000;
 constexpr uint32_t MQTT_RECONNECT_MS = 5000;
 
-constexpr uint32_t STATUS_BROADCAST_MS = 1000;
+constexpr uint32_t STATUS_BROADCAST_MS = 0;
 
 // Storage & identity
 constexpr char CONFIG_PATH[] = "/config.json";

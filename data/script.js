@@ -31,6 +31,9 @@
   const otaProgress = $("ota-progress");
   const otaCheckBtn = $("ota-check-btn");
   const otaUpdateBtn = $("ota-update-btn");
+  const pin4Raw = $("pin4-raw");
+  const pin4SinceChange = $("pin4-since-change");
+  const pin5Raw = $("pin5-raw");
 
   let csrfToken = "";
   let otaPollTimer = null;
@@ -125,6 +128,17 @@
     }
     if (data.ota) {
       renderOtaStatus(data.ota);
+    }
+    if (pin4Raw && typeof data.hddLedRaw === "number") {
+      pin4Raw.textContent = data.hddLedRaw ? "HIGH" : "LOW";
+    }
+    if (pin4SinceChange && typeof data.pin4LastChangeSec === "number") {
+      pin4SinceChange.textContent = data.pin4LastChangeSec < 0
+        ? "Since change: never"
+        : "Since change: " + data.pin4LastChangeSec + "s";
+    }
+    if (pin5Raw && typeof data.pwrLedRaw === "number") {
+      pin5Raw.textContent = data.pwrLedRaw ? "HIGH" : "LOW";
     }
   }
 
@@ -255,8 +269,10 @@
       try {
         const msg = JSON.parse(e.data);
         if (msg.type === "log") {
+          addLog("[WS] " + JSON.stringify(msg));
           addLog(msg.message || "Action");
         } else {
+          addLog("[WS] " + JSON.stringify(msg));
           updateStatus(msg);
         }
       } catch (err) {
@@ -272,7 +288,23 @@
 
   // API actions
   function postAction(endpoint) {
-    fetch(endpoint, { method: "POST", credentials: "include" }).catch(function () {});
+    if (!csrfToken) {
+      addLog("Action blocked: missing CSRF token");
+      return;
+    }
+    fetch(endpoint, {
+      method: "POST",
+      credentials: "include",
+      headers: { "X-CSRF-Token": csrfToken }
+    })
+      .then(function (r) {
+        if (!r.ok) {
+          addLog("Action failed: " + r.status);
+        }
+      })
+      .catch(function () {
+        addLog("Action failed: network error");
+      });
   }
 
   // Hold button factory

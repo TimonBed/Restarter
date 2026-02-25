@@ -267,6 +267,11 @@ static String buildStatusJson() {
   doc["powerRelayActive"] = g_state.powerRelayActive;
   doc["resetRelayActive"] = g_state.resetRelayActive;
   doc["temperature"] = g_state.temperature;
+  doc["pwrLedRaw"] = g_state.pwrLedRaw;
+  doc["hddLedRaw"] = g_state.hddLedRaw;
+  doc["pin4LastChangeSec"] = g_state.lastHddChangeMs > 0
+                               ? static_cast<int32_t>((millis() - g_state.lastHddChangeMs) / 1000)
+                               : -1;
   
   // HDD activity (seconds since last activity, -1 if never seen)
   if (g_state.lastHddActiveMs > 0) {

@@ -119,6 +119,8 @@ private:
   uint32_t lastPowerOnMs = 0;       // When the power LED last turned ON
   uint32_t powerPulseUntilMs = 0;   // When to release the power relay (0 = inactive)
   uint32_t resetPulseUntilMs = 0;   // When to release the reset relay (0 = inactive)
+  bool powerRelayLatched = false;
+  bool resetRelayLatched = false;
   bool lastPowerSignal = false;     // Previous power LED state (for edge detection)
   bool currentPowerSignal = false;  // Current power LED state
   PCState currentState = PCState::OFF;  // Current derived PC state
