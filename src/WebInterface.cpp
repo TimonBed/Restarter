@@ -136,6 +136,52 @@ static bool validateCsrfToken(AsyncWebServerRequest *request) {
   return false;
 }
 
+static bool ensureUiFilesystemReady() {
+  /**
+   * Ensure UI filesystem is mounted and contains at least one HTML entry point.
+   * If files are not found, try a non-destructive remount once.
+   */
+  bool hasIndex = LittleFS.exists("/index.html");
+  bool hasOnboarding = LittleFS.exists("/onboarding.html");
+  if (hasIndex || hasOnboarding) {
+    return true;
+  }
+
+  Serial.println("Web UI files not found, retrying LittleFS mount...");
+  if (!LittleFS.begin(false, "/littlefs", 10, "littlefs")) {
+    Serial.println("Web UI: LittleFS remount failed");
+    return false;
+  }
+  hasIndex = LittleFS.exists("/index.html");
+  hasOnboarding = LittleFS.exists("/onboarding.html");
+  Serial.print("Web UI: /index.html ");
+  Serial.println(hasIndex ? "present" : "missing");
+  Serial.print("Web UI: /onboarding.html ");
+  Serial.println(hasOnboarding ? "present" : "missing");
+  return hasIndex || hasOnboarding;
+}
+
+static void servePortalFile(AsyncWebServerRequest *request) {
+  /**
+   * Serve onboarding in AP mode or dashboard in STA mode.
+   * Falls back to the alternate page if one entry file is missing.
+   */
+  const char* primary = g_state.apMode ? "/onboarding.html" : "/index.html";
+  const char* fallback = g_state.apMode ? "/index.html" : "/onboarding.html";
+
+  if (!ensureUiFilesystemReady()) {
+    request->send(200, "text/plain", "UI not uploaded. Run: pio run --target uploadfs");
+    return;
+  }
+
+  const char* file = LittleFS.exists(primary) ? primary : fallback;
+  Serial.print("Web UI: serving file ");
+  Serial.println(file);
+  AsyncWebServerResponse *response = request->beginResponse(LittleFS, file, "text/html");
+  response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  request->send(response);
+}
+
 // =============================================================================
 // SECURITY: AUTHENTICATION & RATE LIMITING
 // =============================================================================
@@ -395,14 +441,7 @@ void WebInterface_setup() {
   // -------------------------------------------------------------------------
   // Serves the appropriate page based on mode (onboarding in AP, dashboard in STA)
   auto servePortal = [](AsyncWebServerRequest *request) {
-    const char* file = g_state.apMode ? "/onboarding.html" : "/index.html";
-    if (LittleFS.exists(file)) {
-      AsyncWebServerResponse *response = request->beginResponse(LittleFS, file, "text/html");
-      response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-      request->send(response);
-    } else {
-      request->send(200, "text/plain", "UI not uploaded. Run: pio run --target uploadfs");
-    }
+    servePortalFile(request);
   };
 
   // -------------------------------------------------------------------------
@@ -683,6 +722,9 @@ void WebInterface_setup() {
   g_server.on("/fwlink", HTTP_GET, servePortal);             // Windows
   g_server.on("/hotspot-detect.html", HTTP_GET, servePortal); // iOS
   g_server.on("/connecttest.txt", HTTP_GET, servePortal);    // Windows
+  g_server.on("/wpad.dat", HTTP_GET, servePortal);           // Windows proxy probe
+  g_server.on("/wpad.dat/index.htm", HTTP_GET, servePortal); // Some captive checks
+  g_server.on("/index.htm", HTTP_GET, servePortal);          // Legacy browser probe
 
   // -------------------------------------------------------------------------
   // Static Files
@@ -696,14 +738,7 @@ void WebInterface_setup() {
   // -------------------------------------------------------------------------
   // Serve onboarding wizard in AP mode, dashboard in STA mode
   g_server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    const char* file = g_state.apMode ? "/onboarding.html" : "/index.html";
-    if (LittleFS.exists(file)) {
-      AsyncWebServerResponse *response = request->beginResponse(LittleFS, file, "text/html");
-      response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-      request->send(response);
-    } else {
-      request->send(200, "text/plain", "UI not uploaded. Run: pio run --target uploadfs");
-    }
+    servePortalFile(request);
   });
   
   // -------------------------------------------------------------------------

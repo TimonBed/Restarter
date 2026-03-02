@@ -173,6 +173,8 @@ static void loadIdentity() {
   Serial.println(g_state.deviceId);
   Serial.print("Hostname: ");
   Serial.println(g_state.hostname);
+  Serial.print("AP Password (derived): ");
+  Serial.println(g_state.apPassword);
 }
 
 // =============================================================================
@@ -364,6 +366,8 @@ static bool connectSta() {
     Serial.println(WiFi.localIP());
   } else {
     Serial.println("Connection failed!");
+    Serial.print("WiFi.status(): ");
+    Serial.println((int)WiFi.status());
   }
   
   return g_state.wifiConnected;
@@ -423,9 +427,17 @@ void Networking_setup() {
   pinMode(Config::PIN_WIFI_ERROR_LED, OUTPUT);
   digitalWrite(Config::PIN_WIFI_ERROR_LED, LOW);
   
-  // Mount LittleFS filesystem (contains web UI files)
-  if (!LittleFS.begin(true)) {
-    Serial.println("WARNING: LittleFS mount failed!");
+  // Mount LittleFS filesystem (contains web UI files).
+  // Partition label must match partitions_ota.csv ("littlefs"), not the default "spiffs".
+  // Do not auto-format on boot failure: that can wipe uploaded UI unexpectedly.
+  if (!LittleFS.begin(false, "/littlefs", 10, "littlefs")) {
+    Serial.println("WARNING: LittleFS mount failed (no auto-format)");
+  } else {
+    Serial.println("LittleFS mounted (label: littlefs)");
+    Serial.print("LittleFS /index.html: ");
+    Serial.println(LittleFS.exists("/index.html") ? "present" : "missing");
+    Serial.print("LittleFS /onboarding.html: ");
+    Serial.println(LittleFS.exists("/onboarding.html") ? "present" : "missing");
   }
   
   // Load saved configuration

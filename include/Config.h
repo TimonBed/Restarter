@@ -50,5 +50,6 @@ constexpr uint32_t STATUS_BROADCAST_MS = 1000;
 constexpr char CONFIG_PATH[] = "/config.json";
 constexpr char HOSTNAME_PREFIX[] = "restarter-";
 constexpr char AP_SSID_PREFIX[] = "Restarter-";
+constexpr bool AP_FORCE_OPEN_DEBUG = false;  // Temporary troubleshooting mode
 
 } // namespace Config
