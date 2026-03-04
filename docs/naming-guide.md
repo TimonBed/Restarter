@@ -1,3 +1,7 @@
+---
+title: Naming Guide - Device & Company
+---
+
 # Naming Guide – Device & Company
 
 ## Device name

@@ -1,3 +1,7 @@
+---
+title: Allgemeine Geschaeftsbedingungen (AGB)
+---
+
 # Allgemeine Geschäftsbedingungen (AGB)
 
 **[Firmenname]**  

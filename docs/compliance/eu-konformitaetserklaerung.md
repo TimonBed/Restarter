@@ -1,3 +1,7 @@
+---
+title: EU-Konformitaetserklaerung
+---
+
 # EU-Konformitätserklärung
 # EU Declaration of Conformity
 

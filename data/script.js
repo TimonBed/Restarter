@@ -133,9 +133,7 @@
       pin4Raw.textContent = data.hddLedRaw ? "HIGH" : "LOW";
     }
     if (pin4SinceChange && typeof data.pin4LastChangeSec === "number") {
-      pin4SinceChange.textContent = data.pin4LastChangeSec < 0
-        ? "Since change: never"
-        : "Since change: " + data.pin4LastChangeSec + "s";
+      pin4SinceChange.textContent = data.pin4LastChangeSec < 0 ? "Since change: never" : "Since change: " + data.pin4LastChangeSec + "s";
     }
     if (pin5Raw && typeof data.pwrLedRaw === "number") {
       pin5Raw.textContent = data.pwrLedRaw ? "HIGH" : "LOW";
@@ -209,12 +207,16 @@
 
   function fetchOtaStatus() {
     return fetch("/api/ota/status", { credentials: "include" })
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        return r.json();
+      })
       .then(function (ota) {
         renderOtaStatus(ota || {});
         return ota;
       })
-      .catch(function () { return null; });
+      .catch(function () {
+        return null;
+      });
   }
 
   function setOtaPolling(enabled) {
@@ -295,7 +297,7 @@
     fetch(endpoint, {
       method: "POST",
       credentials: "include",
-      headers: { "X-CSRF-Token": csrfToken }
+      headers: { "X-CSRF-Token": csrfToken },
     })
       .then(function (r) {
         if (!r.ok) {
@@ -338,10 +340,18 @@
 
     btn.addEventListener("mousedown", beginHold);
     btn.addEventListener("touchstart", beginHold);
-    btn.addEventListener("mouseup", function () { endHold(false); });
-    btn.addEventListener("mouseleave", function () { endHold(false); });
-    btn.addEventListener("touchend", function () { endHold(false); });
-    btn.addEventListener("touchcancel", function () { endHold(false); });
+    btn.addEventListener("mouseup", function () {
+      endHold(false);
+    });
+    btn.addEventListener("mouseleave", function () {
+      endHold(false);
+    });
+    btn.addEventListener("touchend", function () {
+      endHold(false);
+    });
+    btn.addEventListener("touchcancel", function () {
+      endHold(false);
+    });
   }
 
   setupHoldButton(powerBtn, powerProgress, "/api/action/power");
@@ -361,13 +371,13 @@
           loki: { host: cfg.loki?.host || "", user: cfg.loki?.user || "", pass: "" },
           powerPulseMs: parseInt($("power-pulse-ms").value, 10) || 500,
           resetPulseMs: parseInt($("reset-pulse-ms").value, 10) || 500,
-          bootGraceMs: parseInt($("boot-grace-ms").value, 10) || 60000
+          bootGraceMs: parseInt($("boot-grace-ms").value, 10) || 60000,
         };
         return fetch("/api/config", {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
         });
       })
       .then(function () {
@@ -394,21 +404,21 @@
               port: parseInt($("mqtt-port").value, 10) || 1883,
               user: ($("mqtt-user").value || "").trim(),
               pass: mqttPass,
-              tls: $("mqtt-tls").checked
+              tls: $("mqtt-tls").checked,
             },
             loki: {
               host: ($("loki-host").value || "").trim(),
               user: ($("loki-user").value || "").trim(),
-              pass: lokiPass
+              pass: lokiPass,
             },
             powerPulseMs: cfg.powerPulseMs || 500,
             resetPulseMs: cfg.resetPulseMs || 500,
-            bootGraceMs: cfg.bootGraceMs || 60000
+            bootGraceMs: cfg.bootGraceMs || 60000,
           };
           return fetch("/api/config", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
           });
         })
         .then(function () {
@@ -421,31 +431,32 @@
   // Factory reset button
   const factoryResetBtn = $("factory-reset-btn");
   if (factoryResetBtn) {
-    factoryResetBtn.addEventListener("click", function() {
+    factoryResetBtn.addEventListener("click", function () {
       if (!confirm("This will clear all settings and restart in setup mode.\n\nAfter reset, connect to the ESP32's WiFi network to configure.")) {
         return;
       }
       factoryResetBtn.disabled = true;
       factoryResetBtn.textContent = "Resetting...";
-      
+
       fetch("/api/factory-reset", { method: "POST", credentials: "include" })
-        .then(function() {
+        .then(function () {
           addLog("Factory reset initiated - device will restart in AP mode");
           factoryResetBtn.textContent = "Restarting...";
           // Show instructions
           var section = $("device-section");
           if (section) {
-            section.innerHTML = '<h2 class="text-base font-semibold">Device Restarting</h2>' +
+            section.innerHTML =
+              '<h2 class="text-base font-semibold">Device Restarting</h2>' +
               '<p class="text-sm text-slate-300">The device is restarting in setup mode.</p>' +
               '<p class="text-sm text-slate-400 mt-2">To complete setup:</p>' +
               '<ol class="text-sm text-slate-400 mt-1 space-y-1" style="list-style:decimal;padding-left:1.5rem;">' +
               '<li>Look for WiFi network starting with <strong class="text-slate-200">Restarter-</strong></li>' +
-              '<li>Connect to that network</li>' +
+              "<li>Connect to that network</li>" +
               '<li>Open <strong class="text-slate-200">192.168.4.1</strong> in your browser</li>' +
-              '</ol>';
+              "</ol>";
           }
         })
-        .catch(function() {
+        .catch(function () {
           factoryResetBtn.disabled = false;
           factoryResetBtn.textContent = "Factory Reset & Reconfigure";
           addLog("Factory reset failed");
@@ -459,7 +470,9 @@
       otaCheckBtn.textContent = "Checking...";
       setOtaState("Checking...", "is-checking");
       fetch("/api/ota/check", { credentials: "include" })
-        .then(function (r) { return r.json(); })
+        .then(function (r) {
+          return r.json();
+        })
         .then(function (ota) {
           renderOtaStatus(ota || {});
           if (ota && ota.available) {
@@ -487,9 +500,11 @@
       fetch("/api/ota/update", {
         method: "POST",
         credentials: "include",
-        headers: { "X-CSRF-Token": csrfToken }
+        headers: { "X-CSRF-Token": csrfToken },
       })
-        .then(function (r) { return r.json(); })
+        .then(function (r) {
+          return r.json();
+        })
         .then(function (ota) {
           renderOtaStatus(ota || {});
           addLog("Firmware update started");

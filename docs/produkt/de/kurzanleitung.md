@@ -1,3 +1,7 @@
+---
+title: Kurzanleitung - PC Restarter
+---
+
 # Kurzanleitung - PC Restarter
 
 ---

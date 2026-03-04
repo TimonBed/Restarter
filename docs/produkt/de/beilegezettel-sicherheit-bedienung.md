@@ -1,3 +1,7 @@
+---
+title: PC Restarter - Beilegezettel Sicherheit und Bedienung
+---
+
 <img src="../../images/logo.svg" alt="Logo" width="120" />
 
 # PC Restarter  

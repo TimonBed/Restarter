@@ -1,3 +1,7 @@
+---
+title: Quick Start Guide - PC Restarter
+---
+
 # Quick Start Guide - PC Restarter
 
 ---

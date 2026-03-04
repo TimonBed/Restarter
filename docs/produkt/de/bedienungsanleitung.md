@@ -1,3 +1,7 @@
+---
+title: Bedienungsanleitung - PC Restarter
+---
+
 # Bedienungsanleitung - PC Restarter
 
 **Version:** 1.0  

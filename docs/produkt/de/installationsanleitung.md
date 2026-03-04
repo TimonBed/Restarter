@@ -1,3 +1,7 @@
+---
+title: Installationsanleitung - PC Restarter
+---
+
 # Installationsanleitung - PC Restarter
 
 **Detaillierte Schritt-für-Schritt-Anleitung zur Hardware-Installation**

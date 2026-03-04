@@ -1,3 +1,7 @@
+---
+title: Technical Data Sheet - PC Restarter
+---
+
 # Technical Data Sheet - PC Restarter
 
 **Product:** PC Restarter  

@@ -1,3 +1,7 @@
+---
+title: Impressum (DE) - Vorlage
+---
+
 # Impressum (DE) - Vorlage
 
 Hinweis: Dieses Impressum ist eine Vorlage und muss rechtlich geprueft werden.

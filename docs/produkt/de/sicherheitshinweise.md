@@ -1,3 +1,7 @@
+---
+title: Sicherheitshinweise - PC Restarter
+---
+
 # Sicherheitshinweise - PC Restarter
 
 **Bitte lesen Sie diese Sicherheitshinweise sorgfältig durch, bevor Sie das Gerät in Betrieb nehmen. Bewahren Sie dieses Dokument für spätere Verwendung auf.**

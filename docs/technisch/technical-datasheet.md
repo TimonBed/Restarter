@@ -1,3 +1,7 @@
+---
+title: Technical Data Sheet (EN) - Template
+---
+
 # Technical Data Sheet (EN) - Template
 
 ## Product

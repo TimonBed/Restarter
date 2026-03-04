@@ -80,8 +80,7 @@
         <h2 class="text-base font-semibold">Controls (Hold 2s)</h2>
         <div class="flex gap-3">
           <div class="flex-1 space-y-1">
-            <button id="power-btn" type="button"
-              class="w-full rounded-lg bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 py-2 font-semibold">
+            <button id="power-btn" type="button" class="w-full rounded-lg bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 py-2 font-semibold">
               Power
             </button>
             <div class="h-2 rounded-full bg-slate-800 overflow-hidden">
@@ -89,8 +88,7 @@
             </div>
           </div>
           <div class="flex-1 space-y-1">
-            <button id="reset-hold-btn" type="button"
-              class="w-full rounded-lg bg-amber-600 hover:bg-amber-500 active:bg-amber-700 py-2 font-semibold">
+            <button id="reset-hold-btn" type="button" class="w-full rounded-lg bg-amber-600 hover:bg-amber-500 active:bg-amber-700 py-2 font-semibold">
               Reset
             </button>
             <div class="h-2 rounded-full bg-slate-800 overflow-hidden">
@@ -98,8 +96,7 @@
             </div>
           </div>
           <div class="flex-1 space-y-1">
-            <button id="force-power-btn" type="button"
-              class="w-full rounded-lg bg-red-600 hover:bg-red-500 active:bg-red-700 py-2 font-semibold">
+            <button id="force-power-btn" type="button" class="w-full rounded-lg bg-red-600 hover:bg-red-500 active:bg-red-700 py-2 font-semibold">
               Force Off
             </button>
             <div class="h-2 rounded-full bg-slate-800 overflow-hidden">
@@ -127,9 +124,7 @@
             <label class="text-xs text-slate-400">Boot Grace Period (ms)</label>
             <input id="boot-grace-ms" type="number" class="w-full rounded-lg bg-slate-800 p-2" value="60000" min="1000" max="300000" />
           </div>
-          <button type="submit" class="w-full rounded-lg bg-slate-700 hover:bg-slate-600 py-2 font-semibold text-sm">
-            Save Timing
-          </button>
+          <button type="submit" class="w-full rounded-lg bg-slate-700 hover:bg-slate-600 py-2 font-semibold text-sm">Save Timing</button>
         </form>
       </section>
 
@@ -159,7 +154,13 @@
                 </div>
                 <div class="flex-1">
                   <label class="text-xs text-slate-400">Password</label>
-                  <input id="mqtt-pass" type="password" class="w-full rounded-lg bg-slate-800 p-2 text-sm" placeholder="leave blank to keep" autocomplete="new-password" />
+                  <input
+                    id="mqtt-pass"
+                    type="password"
+                    class="w-full rounded-lg bg-slate-800 p-2 text-sm"
+                    placeholder="leave blank to keep"
+                    autocomplete="new-password"
+                  />
                 </div>
               </div>
               <label class="flex items-center gap-2 text-sm text-slate-400">
@@ -175,7 +176,13 @@
             <div class="grid gap-2">
               <div>
                 <label class="text-xs text-slate-400">Host URL</label>
-                <input id="loki-host" type="text" class="w-full rounded-lg bg-slate-800 p-2 text-sm" placeholder="https://loki.example.com" autocomplete="off" />
+                <input
+                  id="loki-host"
+                  type="text"
+                  class="w-full rounded-lg bg-slate-800 p-2 text-sm"
+                  placeholder="https://loki.example.com"
+                  autocomplete="off"
+                />
               </div>
               <div class="flex gap-2">
                 <div class="flex-1">
@@ -184,7 +191,13 @@
                 </div>
                 <div class="flex-1">
                   <label class="text-xs text-slate-400">Password</label>
-                  <input id="loki-pass" type="password" class="w-full rounded-lg bg-slate-800 p-2 text-sm" placeholder="leave blank to keep" autocomplete="new-password" />
+                  <input
+                    id="loki-pass"
+                    type="password"
+                    class="w-full rounded-lg bg-slate-800 p-2 text-sm"
+                    placeholder="leave blank to keep"
+                    autocomplete="new-password"
+                  />
                 </div>
               </div>
             </div>
@@ -196,9 +209,7 @@
             <p class="text-xs text-slate-400">Metrics at <code class="rounded bg-slate-800 px-1">/metrics</code>. No config needed.</p>
           </div>
 
-          <button type="submit" class="w-full rounded-lg bg-slate-700 hover:bg-slate-600 py-2 font-semibold text-sm">
-            Save Integrations
-          </button>
+          <button type="submit" class="w-full rounded-lg bg-slate-700 hover:bg-slate-600 py-2 font-semibold text-sm">Save Integrations</button>
         </form>
       </section>
 
@@ -216,8 +227,7 @@
             <div id="pin5-raw" class="text-sm font-semibold">—</div>
           </div>
         </div>
-        <div id="action-log"
-          class="h-32 overflow-auto rounded-lg bg-slate-800 p-2 text-xs text-slate-300 space-y-1"></div>
+        <div id="action-log" class="h-32 overflow-auto rounded-lg bg-slate-800 p-2 text-xs text-slate-300 space-y-1"></div>
       </section>
 
       <!-- Device Settings -->
@@ -228,12 +238,8 @@
           <span id="ota-state" class="ota-state hidden">Idle</span>
         </div>
         <div class="ota-meta-grid">
-          <p class="text-xs text-slate-400 ota-meta-item">
-            Current: <span id="ota-current-version">—</span>
-          </p>
-          <p class="text-xs text-slate-400 hidden ota-meta-item" id="ota-remote-wrap">
-            Latest: <span id="ota-remote-version">—</span>
-          </p>
+          <p class="text-xs text-slate-400 ota-meta-item">Current: <span id="ota-current-version">—</span></p>
+          <p class="text-xs text-slate-400 hidden ota-meta-item" id="ota-remote-wrap">Latest: <span id="ota-remote-version">—</span></p>
         </div>
         <p class="text-xs text-slate-300 hidden ota-notes" id="ota-notes"></p>
         <p class="text-xs text-rose-500 hidden ota-error" id="ota-error"></p>
@@ -241,22 +247,18 @@
           <div id="ota-progress" class="h-full bg-violet-600 w-0 ota-progress"></div>
         </div>
         <div class="flex gap-2">
-          <button id="ota-check-btn" type="button"
-            class="flex-1 rounded-lg bg-slate-700 hover:bg-slate-600 py-2 font-semibold text-sm ota-btn">
+          <button id="ota-check-btn" type="button" class="flex-1 rounded-lg bg-slate-700 hover:bg-slate-600 py-2 font-semibold text-sm ota-btn">
             Check for Updates
           </button>
-          <button id="ota-update-btn" type="button"
-            class="flex-1 rounded-lg bg-violet-600 hover:bg-violet-500 py-2 font-semibold text-sm hidden ota-btn">
+          <button id="ota-update-btn" type="button" class="flex-1 rounded-lg bg-violet-600 hover:bg-violet-500 py-2 font-semibold text-sm hidden ota-btn">
             Update Now
           </button>
         </div>
         <p class="text-xs text-slate-400">Reset device configuration and start fresh setup wizard.</p>
-        <button id="factory-reset-btn" type="button"
-          class="w-full rounded-lg bg-rose-600 hover:bg-rose-500 active:bg-rose-700 py-2 font-semibold text-sm">
+        <button id="factory-reset-btn" type="button" class="w-full rounded-lg bg-rose-600 hover:bg-rose-500 active:bg-rose-700 py-2 font-semibold text-sm">
           Factory Reset &amp; Reconfigure
         </button>
       </section>
-
     </main>
 
     <script src="/script.js?v=15"></script>

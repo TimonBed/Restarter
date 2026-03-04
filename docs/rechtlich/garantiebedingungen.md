@@ -1,3 +1,7 @@
+---
+title: Garantiebedingungen (DE) - Vorlage
+---
+
 # Garantiebedingungen (DE) - Vorlage
 
 Hinweis: Diese Garantiebedingungen sind eine Vorlage und muessen rechtlich geprueft werden.

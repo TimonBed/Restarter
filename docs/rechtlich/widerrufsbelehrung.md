@@ -1,3 +1,7 @@
+---
+title: Widerrufsbelehrung (DE) - Vorlage
+---
+
 # Widerrufsbelehrung (DE) - Vorlage
 
 Hinweis: Diese Widerrufsbelehrung ist eine Vorlage und muss rechtlich geprueft werden.

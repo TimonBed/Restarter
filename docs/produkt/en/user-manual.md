@@ -1,3 +1,7 @@
+---
+title: User Manual - PC Restarter
+---
+
 # User Manual - PC Restarter
 
 **Version:** 1.0  

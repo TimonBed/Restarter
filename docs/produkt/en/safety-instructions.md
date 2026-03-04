@@ -1,3 +1,7 @@
+---
+title: Safety Instructions - PC Restarter
+---
+
 # Safety Instructions - PC Restarter
 
 **Please read these safety instructions carefully before operating the device. Keep this document for future reference.**

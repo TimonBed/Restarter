@@ -1,3 +1,7 @@
+---
+title: EU Declaration of Conformity (EN) - Template
+---
+
 # EU Declaration of Conformity (EN) - Template
 
 The manufacturer hereby declares that the product described below complies with the applicable EU directives.

@@ -1,3 +1,7 @@
+---
+title: Datenschutzerklaerung
+---
+
 # Datenschutzerklärung
 
 **[Firmenname]**  
