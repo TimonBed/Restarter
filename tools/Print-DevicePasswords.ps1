@@ -42,30 +42,7 @@ function Get-DevPasswordValue {
 function Get-UploadPort {
   param([string]$RequestedPort)
 
-  if ($RequestedPort) {
-    return $RequestedPort
-  }
-
-  $json = & pio device list --json-output 2>$null
-  if (-not $json) {
-    throw "Could not detect a serial port automatically. Pass the port explicitly, e.g. upload_all.bat COM3"
-  }
-
-  $devices = $json | ConvertFrom-Json
-  if ($devices -isnot [System.Array]) {
-    $devices = @($devices)
-  }
-
-  if ($devices.Count -eq 1 -and $devices[0].port) {
-    return $devices[0].port
-  }
-
-  if ($devices.Count -eq 0) {
-    throw "No serial device detected. Pass the port explicitly, e.g. upload_all.bat COM3"
-  }
-
-  $ports = ($devices | ForEach-Object { $_.port } | Where-Object { $_ }) -join ", "
-  throw "Multiple serial devices detected ($ports). Pass the target port explicitly, e.g. upload_all.bat COM3"
+  return & (Join-Path $PSScriptRoot "Resolve-UploadPort.ps1") -Port $RequestedPort
 }
 
 function Get-MacFromEsptool {
