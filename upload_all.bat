@@ -1,5 +1,23 @@
 @echo off
-REM Upload firmware + web UI (LittleFS) to ESP32
-pio run -t upload
-if %errorlevel% neq 0 exit /b %errorlevel%
-pio run -t uploadfs
+setlocal
+
+REM Upload firmware + web UI (LittleFS) to ESP32.
+REM Optional: pass COM port as first argument, e.g. upload_all.bat COM3
+set "UPLOAD_PORT=%~1"
+set "SCRIPT_DIR=%~dp0"
+
+if "%UPLOAD_PORT%"=="" (
+  pio run -t upload
+) else (
+  pio run -t upload --upload-port %UPLOAD_PORT%
+)
+if errorlevel 1 exit /b %errorlevel%
+
+if "%UPLOAD_PORT%"=="" (
+  pio run -t uploadfs
+) else (
+  pio run -t uploadfs --upload-port %UPLOAD_PORT%
+)
+if errorlevel 1 exit /b %errorlevel%
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%tools\Print-DevicePasswords.ps1" -Port "%UPLOAD_PORT%"

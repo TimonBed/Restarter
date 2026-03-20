@@ -41,7 +41,7 @@ pio run -t uploadfs --upload-port COM3
 ### 3. Configure WiFi
 
 1. Power on the ESP32
-2. Connect to WiFi: **Restarter-XXXXXX** (password shown on serial)
+2. Connect to WiFi: **Restarter-XXXXXX** (`upload_all.bat` prints the password after flashing)
 3. Setup wizard opens automatically
 4. Enter WiFi + optional integrations
 5. Device restarts and connects to your network
@@ -50,7 +50,7 @@ pio run -t uploadfs --upload-port COM3
 
 Open `http://restarter-XXXXXX.local` or use the IP from your router.
 
-**Default credentials**: Username `admin`, password shown on first boot (unique per device).
+**Default credentials**: Username `admin`, password printed by `upload_all.bat` after flashing (unique per device).
 
 ---
 

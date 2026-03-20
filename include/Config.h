@@ -41,6 +41,7 @@ constexpr bool RESET_RELAY_ACTIVE_HIGH = true;
 constexpr uint32_t POWER_PULSE_MS = 500;
 constexpr uint32_t RESET_PULSE_MS = 500;
 constexpr uint32_t FORCE_SHUTDOWN_PULSE_MS = 11000;
+constexpr uint32_t POWER_SIGNAL_DEBOUNCE_MS = 250;
 
 constexpr uint32_t BOOT_GRACE_MS = 60000;
 constexpr uint32_t FACTORY_RESET_HOLD_MS = 5000;

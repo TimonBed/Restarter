@@ -45,8 +45,9 @@ void PCController::begin() {
 
   // Initialize state tracking
   lastPowerOnMs = 0;
-  lastPowerSignal = readActive(Config::PIN_PWR_LED, Config::PWR_LED_ACTIVE_HIGH);
-  currentPowerSignal = lastPowerSignal;
+  rawPowerSignal = readActive(Config::PIN_PWR_LED, Config::PWR_LED_ACTIVE_HIGH);
+  currentPowerSignal = rawPowerSignal;
+  lastPowerSignalChangeMs = millis();
   currentState = PCState::OFF;
 }
 
@@ -165,20 +166,24 @@ void PCController::update() {
   // -------------------------------------------------------------------------
   // Step 1: Read power LED state
   // -------------------------------------------------------------------------
-  currentPowerSignal = readActive(Config::PIN_PWR_LED, Config::PWR_LED_ACTIVE_HIGH);
-
-  // -------------------------------------------------------------------------
-  // Step 2: Detect rising edge (power turning ON)
-  // -------------------------------------------------------------------------
-  // If the power LED just turned on (was off, now on), record the time.
-  // This is used to track the boot grace period.
-  if (currentPowerSignal && !lastPowerSignal) {
-    lastPowerOnMs = nowMs;
-    Serial.println("PC Power LED: ON (boot detected)");
+  bool nextRawPowerSignal = readActive(Config::PIN_PWR_LED, Config::PWR_LED_ACTIVE_HIGH);
+  if (nextRawPowerSignal != rawPowerSignal) {
+    rawPowerSignal = nextRawPowerSignal;
+    lastPowerSignalChangeMs = nowMs;
   }
-  
-  // Save current state for next loop's edge detection
-  lastPowerSignal = currentPowerSignal;
+
+  // Ignore very short glitches on the power LED line so they don't keep the
+  // controller stuck in BOOTING by repeatedly restarting the grace timer.
+  if (currentPowerSignal != rawPowerSignal &&
+      (nowMs - lastPowerSignalChangeMs) >= Config::POWER_SIGNAL_DEBOUNCE_MS) {
+    currentPowerSignal = rawPowerSignal;
+    if (currentPowerSignal) {
+      lastPowerOnMs = nowMs;
+      Serial.println("PC Power LED: ON (boot detected)");
+    } else {
+      Serial.println("PC Power LED: OFF");
+    }
+  }
 
   // -------------------------------------------------------------------------
   // Step 3: Manage relay pulse timing
