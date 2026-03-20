@@ -26,6 +26,9 @@ struct StoredConfig {
   String lokiHost;                // e.g., "http://loki.local:3100"
   String lokiUser;                // Optional basic auth
   String lokiPass;
+
+  // Prometheus Integration
+  bool prometheusEnabled = true;
   
   // Timing
   uint32_t powerPulseMs = 500;

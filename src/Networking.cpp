@@ -227,6 +227,9 @@ bool Networking_loadConfig() {
   String storedLokiPass = g_prefs.getString("lokiPassObf", "");
   g_config.lokiPass = deobfuscatePassword(storedLokiPass, key);
   
+  // Prometheus Integration
+  g_config.prometheusEnabled = g_prefs.getBool("promEnabled", true);
+  
   // Timing settings
   g_config.powerPulseMs = g_prefs.getULong("powerPulseMs", 500);
   g_config.resetPulseMs = g_prefs.getULong("resetPulseMs", 500);
@@ -289,6 +292,9 @@ bool Networking_saveConfig(const StoredConfig &cfg) {
   g_prefs.putString("lokiHost", cfg.lokiHost);
   g_prefs.putString("lokiUser", cfg.lokiUser);
   g_prefs.putString("lokiPassObf", obfuscatePassword(cfg.lokiPass, key));
+  
+  // Prometheus Integration
+  g_prefs.putBool("promEnabled", cfg.prometheusEnabled);
   
   // Timing settings
   g_prefs.putULong("powerPulseMs", cfg.powerPulseMs);

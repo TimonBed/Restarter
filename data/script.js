@@ -60,8 +60,19 @@
           $("loki-user").value = cfg.loki.user || "";
           $("loki-pass").value = "";
         }
+        if (cfg.prometheus) {
+          $("prometheus-enabled").checked = cfg.prometheus.enabled !== false;
+        }
       })
       .catch(() => {});
+  }
+
+  function withCsrfToken(endpoint) {
+    if (!csrfToken) {
+      return endpoint;
+    }
+    const separator = endpoint.indexOf("?") === -1 ? "?" : "&";
+    return endpoint + separator + "csrf_token=" + encodeURIComponent(csrfToken);
   }
 
   // Status display - simple direct updates
@@ -294,7 +305,7 @@
       addLog("Action blocked: missing CSRF token");
       return;
     }
-    fetch(endpoint, {
+    fetch(withCsrfToken(endpoint), {
       method: "POST",
       credentials: "include",
       headers: { "X-CSRF-Token": csrfToken },
@@ -411,6 +422,9 @@
               user: ($("loki-user").value || "").trim(),
               pass: lokiPass,
             },
+            prometheus: {
+              enabled: $("prometheus-enabled").checked,
+            },
             powerPulseMs: cfg.powerPulseMs || 500,
             resetPulseMs: cfg.resetPulseMs || 500,
             bootGraceMs: cfg.bootGraceMs || 60000,
@@ -497,21 +511,27 @@
         return;
       }
 
-      fetch("/api/ota/update", {
+      fetch(withCsrfToken("/api/ota/update"), {
         method: "POST",
         credentials: "include",
         headers: { "X-CSRF-Token": csrfToken },
       })
         .then(function (r) {
-          return r.json();
+          return r.json().then(function (body) {
+            if (!r.ok) {
+              const error = body && body.error ? body.error : "HTTP " + r.status;
+              throw new Error(error);
+            }
+            return body;
+          });
         })
         .then(function (ota) {
           renderOtaStatus(ota || {});
           addLog("Firmware update started");
           setOtaPolling(true);
         })
-        .catch(function () {
-          addLog("Failed to start firmware update");
+        .catch(function (err) {
+          addLog("Failed to start firmware update: " + (err && err.message ? err.message : "unknown error"));
         });
     });
   }

@@ -123,6 +123,10 @@ void MetricsHandler_setup() {
    * No authentication required (Prometheus typically scrapes without auth).
    */
   g_server.on("/metrics", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!g_config.prometheusEnabled) {
+      request->send(404, "text/plain", "Prometheus metrics disabled\n");
+      return;
+    }
     request->send(200, "text/plain; version=0.0.4; charset=utf-8", buildMetrics());
   });
   

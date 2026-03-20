@@ -223,6 +223,17 @@ pio device monitor         # Serial monitor
 pio run -t erase           # Full flash erase
 ```
 
+### GitHub Firmware Release
+
+1. Update `Config::FW_VERSION` in `include/Config.h`.
+2. Build the release firmware with `pio run`.
+3. Verify `.pio/build/esp32c3/firmware.bin` exists and stays below the OTA slot limit from `partitions_ota.csv`.
+4. Commit and push the version change.
+5. Create a GitHub release with a tag matching the firmware version, for example `v0.4.0`.
+6. Upload `.pio/build/esp32c3/firmware.bin` as a release asset named `firmware.bin`.
+
+The OTA updater checks the latest GitHub release, compares the tag with `Config::FW_VERSION`, and downloads the `firmware.bin` asset when a newer version is available. For the full checklist, see `RELEASE.md`.
+
 ### Adding Features
 
 1. **New API endpoint**: Add to `WebInterface.cpp`

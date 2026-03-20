@@ -498,9 +498,9 @@ void WebInterface_setup() {
     loki["hasPass"] = g_config.lokiPass.length() > 0;
     loki["enabled"] = g_config.lokiHost.length() > 0;
     
-    // Prometheus (always enabled, no config needed)
+    // Prometheus Integration
     JsonObject prometheus = doc.createNestedObject("prometheus");
-    prometheus["enabled"] = true;
+    prometheus["enabled"] = g_config.prometheusEnabled;
     prometheus["endpoint"] = "/metrics";
     
     // Timing settings
@@ -585,6 +585,13 @@ void WebInterface_setup() {
           cfg.lokiUser = obj["lokiUser"] | "";
           String newLokiPass = obj["lokiPass"] | "";
           cfg.lokiPass = newLokiPass.length() > 0 ? newLokiPass : g_config.lokiPass;
+        }
+        
+        JsonObject prometheus = obj["prometheus"];
+        if (prometheus) {
+          cfg.prometheusEnabled = prometheus["enabled"] | true;
+        } else {
+          cfg.prometheusEnabled = obj["prometheusEnabled"] | true;
         }
         
         // Timing settings
